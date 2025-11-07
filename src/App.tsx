@@ -1,60 +1,264 @@
-// --- MUI Components ---
-import { Button, Typography, CssBaseline, Box } from '@mui/material'
-import AddLocationIcon from '@mui/icons-material/AddLocation'
+// src/App.tsx
 
-// --- Leaflet Components ---
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import React, { useState, useRef } from 'react';
+import {
+  AppBar,
+  BottomNavigation,
+  BottomNavigationAction,
+  Box,
+  Container,
+  Fab,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
+  Toolbar,
+  Typography,
+  Snackbar,
+  Alert,
+} from '@mui/material';
 
-function App() {
-  // A placeholder position for the map
-  const position: [number, number] = [51.505, -0.09]
+// Import Icons
+import ListIcon from '@mui/icons-material/List';
+import MapIcon from '@mui/icons-material/Map';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AddLocationIcon from '@mui/icons-material/AddLocation';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import StopIcon from '@mui/icons-material/Stop';
 
-  return (
-    <>
-      {/* Resets browser CSS for MUI */}
-      <CssBaseline />
-      
-      <Box sx={{ padding: 2 }}>
-        <Typography variant="h4" gutterBottom>
-          Waymarker Environment Test
-        </Typography>
+// Import the views
+import { ObservationListView } from './pages/ObservationListView';
+import { MapView } from './pages/MapView';
+// FIX: Corrected typo 'pagesa' to 'pages'
+import { SettingsView } from './pages/SettingsView';
+import { NewObservation } from './pages/NewObservation';
+import { LoadingModal } from './pages/components/LoadingModal';
+import { useTracklog } from './hooks/useTracklog';
 
-        <Typography paragraph>
-          This test confirms that MUI, MUI Icons, and React-Leaflet are
-          all configured.
-        </Typography>
-        
-        {/* Test 1: MUI Button with Icon */}
-        <Button
-          variant="contained"
-          startIcon={<AddLocationIcon />}
-          sx={{ marginBottom: 2 }}
-        >
-          MUI Button (New Observation)
-        </Button>
+// Import Services
+import { generateKML } from './services/kmlGenerator';
+import { parseKML } from './services/kmlParser';
 
-        {/* Test 2: React-Leaflet Map */}
-        <Box sx={{ height: '400px', width: '100%' }}>
-          <MapContainer
-            center={position}
-            zoom={13}
-            scrollWheelZoom={false}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={position}>
-              <Popup>
-                Leaflet is working.
-              </Popup>
-            </Marker>
-          </MapContainer>
-        </Box>
-      </Box>
-    </>
-  )
+type View = 'list' | 'map' | 'settings';
+
+interface SnackbarState {
+  open: boolean;
+  message: string;
+  severity: 'success' | 'error';
 }
 
-export default App
+export const App = () => {
+  const [currentView, setCurrentView] = useState<View>('list');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(anchorEl);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isNewObservationOpen, setIsNewObservationOpen] = useState(false);
+
+  // --- State for Modals/Feedback ---
+  const [snackbar, setSnackbar] = useState<SnackbarState>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useTracklog(isRecording);
+
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  // --- Export Logic ---
+  const handleExport = async () => {
+    handleMenuClose();
+    try {
+      const kmlData = await generateKML();
+      const blob = new Blob([kmlData], { type: 'application/vnd.google-earth.kml+xml' });
+      
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+      link.download = `waymarker_export_${timestamp}.kml`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      setSnackbar({ open: true, message: 'Export successful.', severity: 'success' });
+    } catch (error) {
+      console.error('Failed to export KML:', error);
+      setSnackbar({ open: true, message: 'Export failed.', severity: 'error' });
+    }
+  };
+
+  // --- Import Logic ---
+  const handleImportClick = () => {
+    handleMenuClose();
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    const fileText = await file.text();
+
+    try {
+      const { obsCount, trackCount } = await parseKML(fileText);
+      setSnackbar({
+        open: true,
+        message: `Import successful: ${obsCount} obs, ${trackCount} track points.`,
+        severity: 'success',
+      });
+    } catch (error) {
+      console.error('Failed to import KML:', error);
+      setSnackbar({ open: true, message: 'Import failed. File is not valid.', severity: 'error' });
+    } finally {
+      setIsLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
+
+  const renderView = () => {
+    switch (currentView) {
+      case 'map':
+        return <MapView />;
+      case 'settings':
+        return <SettingsView />;
+      case 'list':
+      default:
+        return <ObservationListView />;
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <AppBar position="sticky">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Waymarker
+          </Typography>
+
+          <IconButton
+            color="inherit"
+            onClick={() => setIsRecording(!isRecording)}
+          >
+            {isRecording ? <StopIcon sx={{ color: 'red' }} /> : <FiberManualRecordIcon />}
+          </IconButton>
+
+          <IconButton color="inherit" onClick={handleMenu}>
+            <MoreVertIcon />
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={menuOpen}
+            onClose={handleMenuClose}
+          >
+            <MenuItem onClick={handleImportClick}>Import KML</MenuItem>
+            <MenuItem onClick={handleExport}>Export KML</MenuItem>
+          </Menu>
+        </Toolbar>
+      </AppBar>
+
+      <Container
+        component="main"
+        sx={{
+          flexGrow: 1,
+          overflowY: 'auto',
+          py: 2,
+        }}
+      >
+        {renderView()}
+      </Container>
+
+      <Fab
+        color="primary"
+        aria-label="add observation"
+        sx={{
+          position: 'absolute',
+          bottom: 82,
+          right: 16,
+        }}
+        onClick={() => setIsNewObservationOpen(true)}
+      >
+        <AddLocationIcon />
+      </Fab>
+
+      <Paper
+        sx={{ position: 'sticky', bottom: 0, left: 0, right: 0 }}
+        elevation={3}
+      >
+        <BottomNavigation
+          showLabels
+          value={currentView}
+          onChange={(_event, newValue) => {
+            setCurrentView(newValue as View);
+          }}
+        >
+          <BottomNavigationAction
+            label="List"
+            value="list"
+            icon={<ListIcon />}
+          />
+          <BottomNavigationAction
+            label="Map"
+            value="map"
+            icon={<MapIcon />}
+          />
+          <BottomNavigationAction
+            label="Settings"
+            value="settings"
+            icon={<SettingsIcon />}
+          />
+        </BottomNavigation>
+      </Paper>
+
+      {/* --- Modals & Feedback --- */}
+
+      <NewObservation
+        open={isNewObservationOpen}
+        handleClose={() => setIsNewObservationOpen(false)}
+      />
+
+      <LoadingModal open={isLoading} message="Importing data..." />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".kml"
+        style={{ display: 'none' }}
+      />
+    </Box>
+  );
+};
