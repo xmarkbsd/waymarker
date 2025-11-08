@@ -131,13 +131,14 @@ export const App = () => {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !activeProjectId) return; // 1. ADD guard for activeProjectId
 
     setIsLoading(true);
     const fileText = await file.text();
 
     try {
-      const { obsCount, trackCount } = await parseKML(fileText);
+      // 2. PASS activeProjectId to the parser
+      const { obsCount, trackCount } = await parseKML(fileText, activeProjectId);
       setSnackbar({
         open: true,
         message: `Import successful: ${obsCount} obs, ${trackCount} track points.`,
@@ -198,7 +199,10 @@ export const App = () => {
             open={menuOpen}
             onClose={handleMenuClose}
           >
-            <MenuItem onClick={handleImportClick}>Import KML</MenuItem>
+            {/* 3. DISABLE Import if no active project */}
+            <MenuItem onClick={handleImportClick} disabled={!activeProjectId}>
+              Import KML
+            </MenuItem>
             <MenuItem onClick={handleExportKMLOnly} disabled={!activeProjectId}>
               Export KML Only
             </MenuItem>
@@ -270,7 +274,6 @@ export const App = () => {
         handleClose={() => setIsNewObservationOpen(false)}
       />
 
-      {/* 7. PASS setSnackbar prop */}
       <EditObservation
         open={editingObservationId !== null}
         observationId={editingObservationId}

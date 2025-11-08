@@ -1,12 +1,16 @@
 // src/services/kmlParser.ts
 
 import { db } from '../db';
-import type { IObservation, ITracklogPoint, ISettingsCustomField } from '../db';
+import type {
+  IObservation,
+  ITracklogPoint,
+  ISettingsCustomField,
+  // IProject, // <-- Removed unused import
+} from '../db';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Parses KML <coordinates> string into geometry.
- * Format: lon,lat,alt
  */
 const parseCoordinates = (coordsStr: string): IObservation['geometry'] => {
   const parts = coordsStr.trim().split(',');
@@ -14,17 +18,15 @@ const parseCoordinates = (coordsStr: string): IObservation['geometry'] => {
     longitude: parseFloat(parts[0] || '0'),
     latitude: parseFloat(parts[1] || '0'),
     altitude: parts[2] ? parseFloat(parts[2]) : null,
-    accuracy: 0, // KML doesn't store accuracy, so we default to 0
+    accuracy: 0,
   };
 };
 
 /**
  * Parses <ExtendedData> into core fields and custom fields.
- * This implements the "Flexible Approach" (Option 2).
  */
 const parseExtendedData = (
   placemark: Element,
-  // We pass in the settingsMap to modify it directly
   settingsMap: Map<string, ISettingsCustomField>
 ): {
   coreFields: IObservation['coreFields'];
@@ -34,7 +36,6 @@ const parseExtendedData = (
   const coreFields: IObservation['coreFields'] = { name: '', notes: '' };
   const customFieldValues: IObservation['customFieldValues'] = {};
 
-  // Get observation name from the <name> tag
   coreFields.name =
     placemark.getElementsByTagName('name')[0]?.textContent ||
     'Untitled Observation';
@@ -45,26 +46,22 @@ const parseExtendedData = (
 
     if (!name) continue;
 
-    // Check if this is a Core Field we exported
     if (name === 'Notes') {
       coreFields.notes = value;
       continue;
     }
 
-    // --- This is the Flexible Import Logic ---
     let field = settingsMap.get(name);
     
-    // If the field does NOT exist, create it
     if (!field) {
       field = {
         id: uuidv4(),
-        label: name, // Use the KML 'name' as the new label
-        type: 'text', // Default all imported fields to 'text'
+        label: name,
+        type: 'text',
       };
-      settingsMap.set(name, field); // Add to map to be saved later
+      settingsMap.set(name, field);
     }
 
-    // Add the value to the observation
     customFieldValues[field.id] = value;
   }
 
@@ -74,20 +71,24 @@ const parseExtendedData = (
 /**
  * Parses KML <Placemark> for a tracklog
  */
-const parseTracklog = (placemark: Element): ITracklogPoint[] => {
+const parseTracklog = (
+  placemark: Element,
+  activeProjectId: number
+): ITracklogPoint[] => {
   const coordsStr =
     placemark.getElementsByTagName('coordinates')[0]?.textContent || '';
   
   const points: ITracklogPoint[] = [];
-  const coordsPairs = coordsStr.trim().split(/\s+/); // Split by space
+  const coordsPairs = coordsStr.trim().split(/\s+/);
 
   for (const pair of coordsPairs) {
     const parts = pair.split(',');
     if (parts.length >= 2) {
       points.push({
+        projectId: activeProjectId,
         longitude: parseFloat(parts[0]),
         latitude: parseFloat(parts[1]),
-        timestamp: Date.now(), // KML tracks don't have timestamps per-point
+        timestamp: Date.now(),
         accuracy: 0,
       });
     }
@@ -99,7 +100,8 @@ const parseTracklog = (placemark: Element): ITracklogPoint[] => {
  * Main import function
  */
 export const parseKML = async (
-  kmlText: string
+  kmlText: string,
+  activeProjectId: number
 ): Promise<{ obsCount: number; trackCount: number }> => {
   const parser = new DOMParser();
   const kml = parser.parseFromString(kmlText, 'application/xml');
@@ -108,25 +110,21 @@ export const parseKML = async (
   const newObservations: IObservation[] = [];
   let newTracklogPoints: ITracklogPoint[] = [];
 
-  // Get current settings
-  const settings = await db.settings.get(1);
-  if (!settings) throw new Error('Settings not initialized.');
+  const project = await db.projects.get(activeProjectId);
+  if (!project) throw new Error('Active project not found.');
 
-  // Create a map of existing fields by LABEL
   const settingsMap = new Map<string, ISettingsCustomField>();
-  settings.customFields.forEach((field) => {
+  project.customFields.forEach((field: ISettingsCustomField) => {
     settingsMap.set(field.label, field);
   });
 
   for (const placemark of placemarks) {
-    // Check if it's a Tracklog (LineString)
     const lineString = placemark.getElementsByTagName('LineString')[0];
     if (lineString) {
-      newTracklogPoints.push(...parseTracklog(placemark));
+      newTracklogPoints.push(...parseTracklog(placemark, activeProjectId));
       continue;
     }
 
-    // Check if it's an Observation (Point)
     const point = placemark.getElementsByTagName('Point')[0];
     if (point) {
       const coordsStr =
@@ -138,6 +136,7 @@ export const parseKML = async (
       );
       
       newObservations.push({
+        projectId: activeProjectId,
         geometry: parseCoordinates(coordsStr),
         coreFields,
         customFieldValues,
@@ -153,18 +152,14 @@ export const parseKML = async (
   // --- Save Everything in a Transaction ---
   await db.transaction(
     'rw',
-    db.settings,
+    db.projects,
     db.observations,
     db.tracklog,
     async () => {
-      // 1. Save any new/updated settings
       const newCustomFields = Array.from(settingsMap.values());
-      await db.settings.update(1, { customFields: newCustomFields });
+      await db.projects.update(activeProjectId, { customFields: newCustomFields });
 
-      // 2. Save new observations
       await db.observations.bulkAdd(newObservations);
-      
-      // 3. Save new tracklog points
       await db.tracklog.bulkAdd(newTracklogPoints);
     }
   );
