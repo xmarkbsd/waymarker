@@ -12,7 +12,7 @@ import {
   DialogContentText,
   DialogActions,
   Paper,
-  Divider,
+  // Divider, // No longer needed
 } from '@mui/material';
 import { useProjectCustomFields } from '../hooks/useProjectCustomFields';
 import { db } from '../db';
@@ -22,7 +22,7 @@ import { AddFieldDialog } from './components/AddFieldDialog';
 import { CustomFieldListItem } from './components/CustomFieldListItem';
 import { ProjectManager } from './components/ProjectManager';
 import { AddProjectDialog } from './components/AddProjectDialog';
-import { MapDownloader } from './components/MapDownloader'; // 1. IMPORT
+import { MapDownloader } from './components/MapDownloader';
 import AddIcon from '@mui/icons-material/Add';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 
@@ -142,44 +142,38 @@ export const SettingsView = () => {
 
   return (
     <>
-      <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent' }}>
-        <Typography variant="h5" gutterBottom>
+      <Box sx={{ p: { xs: 0, sm: 2 } }}>
+        <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
           Settings
         </Typography>
 
         {/* --- Project Management Section --- */}
-        <Typography variant="h6" sx={{ mt: 3 }}>
-          Projects
-        </Typography>
-        <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-          Select an active project, or create a new one. All new data
-          will be saved to the active project.
-        </Typography>
-        <ProjectManager />
-        <Button
-          variant="contained"
-          startIcon={<CreateNewFolderIcon />}
-          onClick={() => setIsAddProjectOpen(true)}
-          sx={{ mt: 2 }}
-        >
-          Add New Project
-        </Button>
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6">Projects</Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+            Select an active project, or create a new one. All new data
+            will be saved to the active project.
+          </Typography>
+          <ProjectManager />
+          <Button
+            variant="contained"
+            startIcon={<CreateNewFolderIcon />}
+            onClick={() => setIsAddProjectOpen(true)}
+            sx={{ mt: 2 }}
+          >
+            Add New Project
+          </Button>
+        </Paper>
 
-        <Divider sx={{ my: 4 }} />
-
-        {/* --- 2. ADD Offline Maps Section --- */}
-        <Typography variant="h6" sx={{ mt: 3 }}>
-          Offline Maps
-        </Typography>
-        <MapDownloader />
-
-        <Divider sx={{ my: 4 }} />
+        {/* --- Offline Maps Section --- */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6">Offline Maps</Typography>
+          <MapDownloader />
+        </Paper>
 
         {/* --- Custom Fields Section --- */}
-        <Box sx={{ opacity: activeProjectId ? 1 : 0.4 }}>
-          <Typography variant="h6" sx={{ mt: 3 }}>
-            Custom Fields
-          </Typography>
+        <Paper sx={{ p: 2, mb: 3, opacity: activeProjectId ? 1 : 0.4 }}>
+          <Typography variant="h6">Custom Fields</Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
             {activeProjectId
               ? 'Define custom fields for the active project.'
@@ -195,8 +189,8 @@ export const SettingsView = () => {
           >
             Add Field
           </Button>
-        </Box>
-      </Paper>
+        </Paper>
+      </Box>
 
       {/* --- Dialogs --- */}
       
