@@ -10,38 +10,41 @@ const geolocationOptions: PositionOptions = {
   maximumAge: 0,
 };
 
-export const useTracklog = (isRecording: boolean) => {
-  // Use useRef to hold the watchId
+export const useTracklog = (
+  isRecording: boolean,
+  activeProjectId: number | null // 1. ACCEPT activeProjectId
+) => {
   const watchId = useRef<number | null>(null);
 
   useEffect(() => {
-    // This is the success callback for watchPosition
+    // 2. DO NOTHING if recording is on but no project is active
+    if (isRecording && !activeProjectId) {
+      console.warn('Tracklog: Recording is on, but no active project.');
+      return;
+    }
+
     const handleSuccess = (position: GeolocationPosition) => {
       const { latitude, longitude, accuracy } = position.coords;
       const timestamp = position.timestamp;
 
-      // Construct the tracklog point
       const newPoint: ITracklogPoint = {
+        projectId: activeProjectId!, // 3. SAVE projectId
         timestamp,
         latitude,
         longitude,
         accuracy,
       };
 
-      // Add it to the database
       db.tracklog.add(newPoint).catch((error) => {
         console.error('Failed to save tracklog point:', error);
       });
     };
 
-    // This is the error callback
     const handleError = (error: GeolocationPositionError) => {
       console.error('Geolocation error:', error.message);
     };
 
-    // --- Start or Stop Recording ---
     if (isRecording) {
-      // Start recording
       if (watchId.current === null) {
         watchId.current = navigator.geolocation.watchPosition(
           handleSuccess,
@@ -50,18 +53,16 @@ export const useTracklog = (isRecording: boolean) => {
         );
       }
     } else {
-      // Stop recording
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
         watchId.current = null;
       }
     }
 
-    // Cleanup function: stop recording when the component unmounts
     return () => {
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
       }
     };
-  }, [isRecording]); // This effect re-runs when isRecording changes
+  }, [isRecording, activeProjectId]); // 4. ADD activeProjectId to dependencies
 };

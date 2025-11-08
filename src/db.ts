@@ -1,9 +1,9 @@
 // src/db.ts
 
 import Dexie from 'dexie';
-import type { Table } from 'dexie';
+import type { Table, Transaction } from 'dexie';
 
-// ... (Keep all existing interfaces: ICoreFields, IGeometry, etc.)
+// --- INTERFACES ---
 
 export interface ICoreFields {
   name: string;
@@ -21,8 +21,15 @@ export interface ICustomFieldValues {
   [key: string]: any;
 }
 
+export interface IProject {
+  id?: number;
+  name: string;
+  createdAt: Date;
+}
+
 export interface IObservation {
   id?: number;
+  projectId: number;
   createdAt: Date;
   geometry: IGeometry;
   coreFields: ICoreFields;
@@ -31,6 +38,7 @@ export interface IObservation {
 
 export interface ITracklogPoint {
   id?: number;
+  projectId: number;
   timestamp: number;
   latitude: number;
   longitude: number;
@@ -40,42 +48,87 @@ export interface ITracklogPoint {
 export interface ISettingsCustomField {
   id: string;
   label: string;
-  type: 'text' | 'photo_reference' | 'autocomplete';
+  // FIX: Added new advanced field types
+  type:
+    | 'text'
+    | 'photo_reference'
+    | 'autocomplete'
+    | 'number'
+    | 'date'
+    | 'boolean';
   options?: string[];
 }
 
 export interface ISettings {
-  id?: number; // Should always be 1
+  id?: number;
+  activeProjectId: number | null;
   customFields: ISettingsCustomField[];
 }
 
+// --- DATABASE CLASS ---
+
 export class WaymarkerDB extends Dexie {
+  projects!: Table<IProject, number>;
   observations!: Table<IObservation, number>;
   tracklog!: Table<ITracklogPoint, number>;
   settings!: Table<ISettings, number>;
 
   constructor() {
     super('WaymarkerDB');
+    
     this.version(1).stores({
       observations: '++id, createdAt',
       tracklog: '++id, timestamp',
-      settings: 'id', // 'id' is the primary key
+      settings: 'id',
     });
 
-    // **NEW CODE**: This event hook runs when the DB is
-    // created for the first time.
-    this.on('populate', this.populate);
+    this.version(2)
+      .stores({
+        projects: '++id, createdAt',
+        observations: '++id, projectId, createdAt',
+        tracklog: '++id, projectId, timestamp',
+        settings: 'id',
+      })
+      .upgrade(this.migrateToV2);
+
+    this.version(3).stores({
+      observations: '++id, [projectId+createdAt]',
+      tracklog: '++id, [projectId+timestamp]',
+      projects: '++id, createdAt',
+      settings: 'id',
+    });
+
+    this.on('populate', this.populateV2);
   }
 
-  // **NEW FUNCTION**: Populates the DB with default data
-  populate = async () => {
+  migrateToV2 = async (tx: Transaction) => {
+    const defaultProjectId = await tx.table('projects').add({
+      name: 'Default Project',
+      createdAt: new Date(),
+    });
+    await tx
+      .table('observations')
+      .toCollection()
+      .modify({ projectId: defaultProjectId });
+    await tx
+      .table('tracklog')
+      .toCollection()
+      .modify({ projectId: defaultProjectId });
+    await tx.table('settings').update(1, {
+      activeProjectId: defaultProjectId,
+    });
+  };
+
+  populateV2 = async () => {
     try {
-      // Add a default settings object.
-      // We use a known 'id: 1' to make it a singleton
-      // document we can always fetch.
+      const defaultProjectId = await this.projects.add({
+        name: 'Default Project',
+        createdAt: new Date(),
+      });
       await this.settings.add({
         id: 1,
-        customFields: [], // Start with an empty list
+        customFields: [],
+        activeProjectId: defaultProjectId,
       });
     } catch (error) {
       console.error('Failed to populate database:', error);

@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import type { ISettingsCustomField } from '../../db';
-import { v4 as uuidv4 } from 'uuid'; // We need a UUID generator
+import { v4 as uuidv4 } from 'uuid';
 
 interface AddFieldDialogProps {
   open: boolean;
@@ -75,9 +75,13 @@ export const AddFieldDialog = ({
             value={type}
             onChange={(e) => setType(e.target.value as FieldType)}
           >
+            {/* UPDATED: Added new field types */}
             <MenuItem value={'text'}>Text</MenuItem>
-            <MenuItem value={'photo_reference'}>Photo Reference</MenuItem>
+            <MenuItem value={'number'}>Number</MenuItem>
+            <MenuItem value={'date'}>Date</MenuItem>
+            <MenuItem value={'boolean'}>Boolean (Yes/No)</MenuItem>
             <MenuItem value={'autocomplete'}>Autocomplete List</MenuItem>
+            <MenuItem value={'photo_reference'}>Photo Reference</MenuItem>
           </Select>
         </FormControl>
         {type === 'autocomplete' && (

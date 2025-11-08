@@ -3,10 +3,23 @@
 import { Marker, Popup } from 'react-leaflet';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
+import { useActiveProject } from '../../hooks/useActiveProject'; // 1. IMPORT hook
 
 export const ObservationMarkers = () => {
-  // Live query to get all observations
-  const observations = useLiveQuery(() => db.observations.toArray(), []);
+  // 2. GET active project
+  const activeProjectId = useActiveProject();
+
+  // 3. UPDATE query to use activeProjectId
+  const observations = useLiveQuery(
+    () => {
+      if (!activeProjectId) return [];
+      return db.observations
+        .where('projectId')
+        .equals(activeProjectId)
+        .toArray();
+    },
+    [activeProjectId] // 4. ADD dependency
+  );
 
   if (!observations) {
     return null; // Don't render anything while loading

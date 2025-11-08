@@ -30,11 +30,12 @@ import StopIcon from '@mui/icons-material/Stop';
 // Import the views
 import { ObservationListView } from './pages/ObservationListView';
 import { MapView } from './pages/MapView';
-// FIX: Corrected typo 'pagesa' to 'pages'
-import { SettingsView } from './pages/SettingsView';
+import { SettingsView } from './pages/SettingsView'; // <-- FIX: Was 'pagesa'
 import { NewObservation } from './pages/NewObservation';
+import { EditObservation } from './pages/EditObservation';
 import { LoadingModal } from './pages/components/LoadingModal';
 import { useTracklog } from './hooks/useTracklog';
+import { useActiveProject } from './hooks/useActiveProject';
 
 // Import Services
 import { generateKML } from './services/kmlGenerator';
@@ -54,18 +55,21 @@ export const App = () => {
   const menuOpen = Boolean(anchorEl);
   const [isRecording, setIsRecording] = useState(false);
   const [isNewObservationOpen, setIsNewObservationOpen] = useState(false);
+  
+  const [editingObservationId, setEditingObservationId] = useState<number | null>(
+    null
+  );
 
-  // --- State for Modals/Feedback ---
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: '',
     severity: 'success',
   });
   const [isLoading, setIsLoading] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useTracklog(isRecording);
+  const activeProjectId = useActiveProject();
+  useTracklog(isRecording, activeProjectId);
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -78,8 +82,12 @@ export const App = () => {
   // --- Export Logic ---
   const handleExport = async () => {
     handleMenuClose();
+    if (!activeProjectId) {
+      setSnackbar({ open: true, message: 'No active project to export.', severity: 'error' });
+      return;
+    }
     try {
-      const kmlData = await generateKML();
+      const kmlData = await generateKML(); 
       const blob = new Blob([kmlData], { type: 'application/vnd.google-earth.kml+xml' });
       
       const link = document.createElement('a');
@@ -133,6 +141,10 @@ export const App = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
+  const handleEditObservation = (id: number) => {
+    setEditingObservationId(id);
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'map':
@@ -141,7 +153,7 @@ export const App = () => {
         return <SettingsView />;
       case 'list':
       default:
-        return <ObservationListView />;
+        return <ObservationListView onEdit={handleEditObservation} />;
     }
   };
 
@@ -156,6 +168,7 @@ export const App = () => {
           <IconButton
             color="inherit"
             onClick={() => setIsRecording(!isRecording)}
+            disabled={!activeProjectId}
           >
             {isRecording ? <StopIcon sx={{ color: 'red' }} /> : <FiberManualRecordIcon />}
           </IconButton>
@@ -169,7 +182,9 @@ export const App = () => {
             onClose={handleMenuClose}
           >
             <MenuItem onClick={handleImportClick}>Import KML</MenuItem>
-            <MenuItem onClick={handleExport}>Export KML</MenuItem>
+            <MenuItem onClick={handleExport} disabled={!activeProjectId}>
+              Export KML
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
@@ -194,6 +209,7 @@ export const App = () => {
           right: 16,
         }}
         onClick={() => setIsNewObservationOpen(true)}
+        disabled={!activeProjectId}
       >
         <AddLocationIcon />
       </Fab>
@@ -232,6 +248,12 @@ export const App = () => {
       <NewObservation
         open={isNewObservationOpen}
         handleClose={() => setIsNewObservationOpen(false)}
+      />
+
+      <EditObservation
+        open={editingObservationId !== null}
+        observationId={editingObservationId}
+        handleClose={() => setEditingObservationId(null)}
       />
 
       <LoadingModal open={isLoading} message="Importing data..." />

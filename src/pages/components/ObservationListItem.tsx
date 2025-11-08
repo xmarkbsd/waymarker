@@ -9,17 +9,18 @@ import {
 } from '@mui/material';
 import PlaceIcon from '@mui/icons-material/Place';
 import DeleteIcon from '@mui/icons-material/Delete';
-// FIX: Use 'import type' for the type definition
 import type { IObservation } from '../../db';
 
 interface ObservationListItemProps {
   observation: IObservation;
   onDelete: (id: number) => void;
+  onEdit: () => void; // 1. ADD onEdit prop
 }
 
 export const ObservationListItem = ({
   observation,
   onDelete,
+  onEdit, // 2. ACCEPT prop
 }: ObservationListItemProps) => {
   const { id, coreFields, createdAt } = observation;
 
@@ -43,7 +44,8 @@ export const ObservationListItem = ({
         </IconButton>
       }
     >
-      <ListItemButton>
+      {/* 3. MAKE button clickable */}
+      <ListItemButton onClick={onEdit}>
         <ListItemIcon>
           <PlaceIcon />
         </ListItemIcon>

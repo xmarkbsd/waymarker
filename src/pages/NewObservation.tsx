@@ -17,10 +17,10 @@ import type { TransitionProps } from '@mui/material/transitions';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { GpsStatusView } from './components/GpsStatusView';
 import { useGeolocation } from '../hooks/useGeolocation';
-// FIX: Use 'import type' for type definitions
 import type { ICustomFieldValues, IObservation } from '../db';
 import { db } from '../db';
 import { CustomFieldRenderer } from './components/CustomFieldRenderer';
+import { useActiveProject } from '../hooks/useActiveProject'; // 1. IMPORT new hook
 
 const Transition = React.forwardRef(
   function Transition(
@@ -41,6 +41,7 @@ interface NewObservationProps {
 export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
   const [watch, setWatch] = useState(false);
   const geoState = useGeolocation(watch);
+  const activeProjectId = useActiveProject(); // 2. GET active project ID
 
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
@@ -65,15 +66,19 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
     }));
   };
 
-  const isSaveDisabled = geoState.status !== 'Locked';
+  // 3. UPDATE Save logic
+  const isSaveDisabled =
+    geoState.status !== 'Locked' || activeProjectId === null;
 
   const handleSave = async () => {
-    if (geoState.status !== 'Locked') {
-      console.error('Save attempted with no GPS lock.');
+    if (isSaveDisabled) {
+      console.error('Save attempted with no GPS lock or no active project.');
       return;
     }
 
+    // 4. ADD projectId to the new observation object
     const newObservation: IObservation = {
+      projectId: activeProjectId!, // This is now safe
       createdAt: new Date(),
       coreFields: {
         name: name || 'Untitled Observation',
