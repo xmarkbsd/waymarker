@@ -30,16 +30,19 @@ import StopIcon from '@mui/icons-material/Stop';
 // Import the views
 import { ObservationListView } from './pages/ObservationListView';
 import { MapView } from './pages/MapView';
-import { SettingsView } from './pages/SettingsView'; // <-- FIX: Was 'pagesa'
+import { SettingsView } from './pages/SettingsView';
 import { NewObservation } from './pages/NewObservation';
 import { EditObservation } from './pages/EditObservation';
 import { LoadingModal } from './pages/components/LoadingModal';
+import { ZipExportDialog } from './pages/components/ZipExportDialog';
 import { useTracklog } from './hooks/useTracklog';
 import { useActiveProject } from './hooks/useActiveProject';
 
 // Import Services
 import { generateKML } from './services/kmlGenerator';
 import { parseKML } from './services/kmlParser';
+import { db } from './db';
+import type { IProject } from './db';
 
 type View = 'list' | 'map' | 'settings';
 
@@ -55,11 +58,9 @@ export const App = () => {
   const menuOpen = Boolean(anchorEl);
   const [isRecording, setIsRecording] = useState(false);
   const [isNewObservationOpen, setIsNewObservationOpen] = useState(false);
-  
   const [editingObservationId, setEditingObservationId] = useState<number | null>(
     null
   );
-
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: '',
@@ -67,6 +68,9 @@ export const App = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isZipExportOpen, setIsZipExportOpen] = useState(false);
+  const [projectToExport, setProjectToExport] = useState<IProject | null>(null);
 
   const activeProjectId = useActiveProject();
   useTracklog(isRecording, activeProjectId);
@@ -80,14 +84,14 @@ export const App = () => {
   };
 
   // --- Export Logic ---
-  const handleExport = async () => {
+  const handleExportKMLOnly = async () => {
     handleMenuClose();
     if (!activeProjectId) {
       setSnackbar({ open: true, message: 'No active project to export.', severity: 'error' });
       return;
     }
     try {
-      const kmlData = await generateKML(); 
+      const kmlData = await generateKML(activeProjectId); 
       const blob = new Blob([kmlData], { type: 'application/vnd.google-earth.kml+xml' });
       
       const link = document.createElement('a');
@@ -99,10 +103,23 @@ export const App = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
 
-      setSnackbar({ open: true, message: 'Export successful.', severity: 'success' });
+      setSnackbar({ open: true, message: 'KML Export successful.', severity: 'success' });
     } catch (error) {
       console.error('Failed to export KML:', error);
       setSnackbar({ open: true, message: 'Export failed.', severity: 'error' });
+    }
+  };
+
+  const handleZipExport = async () => {
+    handleMenuClose();
+    if (!activeProjectId) {
+      setSnackbar({ open: true, message: 'No active project to export.', severity: 'error' });
+      return;
+    }
+    const project = await db.projects.get(activeProjectId);
+    if (project) {
+      setProjectToExport(project);
+      setIsZipExportOpen(true);
     }
   };
 
@@ -182,8 +199,11 @@ export const App = () => {
             onClose={handleMenuClose}
           >
             <MenuItem onClick={handleImportClick}>Import KML</MenuItem>
-            <MenuItem onClick={handleExport} disabled={!activeProjectId}>
-              Export KML
+            <MenuItem onClick={handleExportKMLOnly} disabled={!activeProjectId}>
+              Export KML Only
+            </MenuItem>
+            <MenuItem onClick={handleZipExport} disabled={!activeProjectId}>
+              Export Zip Bundle...
             </MenuItem>
           </Menu>
         </Toolbar>
@@ -250,10 +270,18 @@ export const App = () => {
         handleClose={() => setIsNewObservationOpen(false)}
       />
 
+      {/* 7. PASS setSnackbar prop */}
       <EditObservation
         open={editingObservationId !== null}
         observationId={editingObservationId}
         handleClose={() => setEditingObservationId(null)}
+        setSnackbar={setSnackbar}
+      />
+
+      <ZipExportDialog
+        open={isZipExportOpen}
+        onClose={() => setIsZipExportOpen(false)}
+        project={projectToExport}
       />
 
       <LoadingModal open={isLoading} message="Importing data..." />

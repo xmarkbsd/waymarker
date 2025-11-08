@@ -17,11 +17,12 @@ import {
 } from '@mui/material';
 import type { TransitionProps } from '@mui/material/transitions';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ShareIcon from '@mui/icons-material/Share'; // 1. IMPORT ShareIcon
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-// FIX: Removed unused 'IObservation' type
-import type { ICustomFieldValues } from '../db';
+import type { ICustomFieldValues, IProject } from '../db';
 import { CustomFieldRenderer } from './components/CustomFieldRenderer';
+import type { IPhotoReference } from './components/PhotoReferenceInput';
 
 const Transition = React.forwardRef(
   function Transition(
@@ -35,12 +36,14 @@ const Transition = React.forwardRef(
 );
 
 interface EditObservationProps {
-  observationId: number | null; // The ID of the obs to edit
+  observationId: number | null;
   open: boolean;
   handleClose: () => void;
+  // 2. ADD snackbar prop for clipboard fallback
+  setSnackbar: (state: { open: boolean; message: string; severity: 'success' | 'error' }) => void;
 }
 
-// Helper to display saved GPS data
+// Helper
 const GpsDataItem = ({
   title,
   value,
@@ -60,12 +63,19 @@ export const EditObservation = ({
   observationId,
   open,
   handleClose,
+  setSnackbar, // 3. ACCEPT snackbar prop
 }: EditObservationProps) => {
-  // 1. Fetch the observation from the DB
+  // 1. Fetch the observation
   const observation = useLiveQuery(
     () => (observationId ? db.observations.get(observationId) : undefined),
     [observationId]
   );
+  
+  // 4. FETCH the project to get custom field labels
+  const project = useLiveQuery(
+    () => (observation ? db.projects.get(observation.projectId) : undefined),
+    [observation]
+  ) as IProject | undefined;
 
   // 2. Form state
   const [name, setName] = useState('');
@@ -73,14 +83,13 @@ export const EditObservation = ({
   const [customFieldValues, setCustomFieldValues] =
     useState<ICustomFieldValues>({});
 
-  // 3. Populate form when observation data loads
+  // 3. Populate form
   useEffect(() => {
     if (observation) {
       setName(observation.coreFields.name);
       setNotes(observation.coreFields.notes);
       setCustomFieldValues(observation.customFieldValues);
     } else {
-      // Reset form if dialog is closed or obs is not found
       setName('');
       setNotes('');
       setCustomFieldValues({});
@@ -97,7 +106,6 @@ export const EditObservation = ({
   // 4. Implement Update (Save) logic
   const handleSave = async () => {
     if (!observationId) return;
-
     try {
       await db.observations.update(observationId, {
         coreFields: {
@@ -106,9 +114,63 @@ export const EditObservation = ({
         },
         customFieldValues: customFieldValues,
       });
-      handleClose(); // Close dialog on success
+      handleClose();
     } catch (error) {
       console.error('Failed to update observation:', error);
+    }
+  };
+
+  // 5. IMPLEMENT Share logic
+  const handleShare = async () => {
+    if (!observation || !project) return;
+
+    // A. Build the text summary
+    let summary = `Waymarker Observation: ${observation.coreFields.name}\n`;
+    summary += `Coordinates: ${observation.geometry.latitude.toFixed(6)}, ${observation.geometry.longitude.toFixed(6)}\n`;
+    summary += `Timestamp: ${observation.createdAt.toLocaleString()}\n`;
+    summary += '---\n';
+    if (observation.coreFields.notes) {
+      summary += `Notes:\n${observation.coreFields.notes}\n---\n`;
+    }
+
+    // B. Add custom fields
+    summary += 'Custom Fields:\n';
+    const fieldMap = new Map(project.customFields.map(f => [f.id, f.label]));
+    let customCount = 0;
+    for (const [fieldId, value] of Object.entries(observation.customFieldValues)) {
+      const label = fieldMap.get(fieldId);
+      if (label && value) {
+        customCount++;
+        let displayValue = value;
+        if (typeof value === 'object' && value.name) {
+          displayValue = (value as IPhotoReference).name;
+        }
+        summary += `${label}: ${displayValue}\n`;
+      }
+    }
+    if (customCount === 0) {
+      summary += '(None)\n';
+    }
+
+    // C. Attempt to use Web Share API
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Waymarker: ${observation.coreFields.name}`,
+          text: summary,
+        });
+      } catch (error) {
+        console.error('Share failed:', error);
+      }
+    } else {
+      // D. Fallback to clipboard
+      try {
+        await navigator.clipboard.writeText(summary);
+        setSnackbar({ open: true, message: 'Copied to clipboard', severity: 'success' });
+      } catch (error) {
+        console.error('Clipboard write failed:', error);
+        setSnackbar({ open: true, message: 'Failed to copy to clipboard', severity: 'error' });
+      }
     }
   };
 
@@ -118,7 +180,6 @@ export const EditObservation = ({
       open={open}
       onClose={handleClose}
       TransitionComponent={Transition}
-      // FIX: Removed non-existent 'onExited' prop
     >
       <AppBar sx={{ position: 'relative' }}>
         <Toolbar>
@@ -133,6 +194,14 @@ export const EditObservation = ({
           <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
             Edit Observation
           </Typography>
+          {/* 6. ADD Share Button */}
+          <IconButton
+            color="inherit"
+            onClick={handleShare}
+            disabled={!observation || !project}
+          >
+            <ShareIcon />
+          </IconButton>
           <Button autoFocus color="inherit" onClick={handleSave}>
             Save
           </Button>
@@ -147,7 +216,7 @@ export const EditObservation = ({
           height: '100%',
         }}
       >
-        {/* 5. Display SAVED GPS data (not live) */}
+        {/* Saved GPS data */}
         <Paper
           elevation={2}
           sx={{
@@ -188,7 +257,7 @@ export const EditObservation = ({
           )}
         </Paper>
 
-        {/* 6. Form Fields (same as NewObservation) */}
+        {/* Form Fields */}
         <Box component="form" noValidate autoComplete="off">
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
             Core Fields

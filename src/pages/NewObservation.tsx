@@ -12,6 +12,7 @@ import {
   Slide,
   TextField,
   Box,
+  CircularProgress, // 1. IMPORT CircularProgress
 } from '@mui/material';
 import type { TransitionProps } from '@mui/material/transitions';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -20,7 +21,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import type { ICustomFieldValues, IObservation } from '../db';
 import { db } from '../db';
 import { CustomFieldRenderer } from './components/CustomFieldRenderer';
-import { useActiveProject } from '../hooks/useActiveProject'; // 1. IMPORT new hook
+import { useActiveProject } from '../hooks/useActiveProject';
 
 const Transition = React.forwardRef(
   function Transition(
@@ -41,12 +42,15 @@ interface NewObservationProps {
 export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
   const [watch, setWatch] = useState(false);
   const geoState = useGeolocation(watch);
-  const activeProjectId = useActiveProject(); // 2. GET active project ID
+  const activeProjectId = useActiveProject();
 
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
   const [customFieldValues, setCustomFieldValues] =
     useState<ICustomFieldValues>({});
+  
+  // 2. ADD isSaving state
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -66,19 +70,16 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
     }));
   };
 
-  // 3. UPDATE Save logic
   const isSaveDisabled =
     geoState.status !== 'Locked' || activeProjectId === null;
 
   const handleSave = async () => {
-    if (isSaveDisabled) {
-      console.error('Save attempted with no GPS lock or no active project.');
-      return;
-    }
+    if (isSaveDisabled || isSaving) return; // Prevent double-click
 
-    // 4. ADD projectId to the new observation object
+    setIsSaving(true); // 3. SET saving state
+
     const newObservation: IObservation = {
-      projectId: activeProjectId!, // This is now safe
+      projectId: activeProjectId!,
       createdAt: new Date(),
       coreFields: {
         name: name || 'Untitled Observation',
@@ -98,6 +99,9 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
       handleClose();
     } catch (error) {
       console.error('Failed to save observation:', error);
+      // In a real app, show a snackbar error
+    } finally {
+      setIsSaving(false); // 4. UNSET saving state
     }
   };
 
@@ -115,6 +119,7 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
             color="inherit"
             onClick={handleClose}
             aria-label="close"
+            disabled={isSaving} // 5. DISABLE back button
           >
             <ArrowBackIcon />
           </IconButton>
@@ -125,9 +130,14 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
             autoFocus
             color="inherit"
             onClick={handleSave}
-            disabled={isSaveDisabled}
+            // 6. UPDATE button state
+            disabled={isSaveDisabled || isSaving}
           >
-            Save
+            {isSaving ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Save'
+            )}
           </Button>
         </Toolbar>
       </AppBar>

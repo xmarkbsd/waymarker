@@ -12,32 +12,41 @@ import {
   DialogContentText,
   DialogActions,
   Paper,
-  Divider, // 1. IMPORT Divider
+  Divider,
 } from '@mui/material';
-import { useSettings } from '../hooks/useSettings';
+import { useProjectCustomFields } from '../hooks/useProjectCustomFields';
 import { db } from '../db';
 import type { ISettingsCustomField } from '../db';
 import { useState } from 'react';
 import { AddFieldDialog } from './components/AddFieldDialog';
 import { CustomFieldListItem } from './components/CustomFieldListItem';
-import { ProjectManager } from './components/ProjectManager'; // 2. IMPORT ProjectManager
+import { ProjectManager } from './components/ProjectManager';
+import { AddProjectDialog } from './components/AddProjectDialog';
+import { MapDownloader } from './components/MapDownloader'; // 1. IMPORT
 import AddIcon from '@mui/icons-material/Add';
-import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder'; // 1. IMPORT Icon
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 
 export const SettingsView = () => {
-  const { customFields, loading } = useSettings();
+  const { customFields, loading, activeProjectId } = useProjectCustomFields();
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<ISettingsCustomField | null>(
     null
   );
+  
+  const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
 
   // --- Add Field Logic ---
   const handleSaveField = async (newField: ISettingsCustomField) => {
+    if (!activeProjectId) return;
     try {
-      await db.settings.update(1, {
-        customFields: [...customFields, newField],
-      });
+      const project = await db.projects.get(activeProjectId);
+      if (project) {
+        await db.projects.update(activeProjectId, {
+          customFields: [...project.customFields, newField],
+        });
+      }
     } catch (error) {
       console.error('Failed to save new field:', error);
     }
@@ -53,42 +62,58 @@ export const SettingsView = () => {
     setIsDeleteOpen(false);
   };
   const handleConfirmDelete = async () => {
-    if (!fieldToDelete) return;
+    if (!fieldToDelete || !activeProjectId) return;
     try {
-      await db.transaction('rw', db.observations, db.settings, async () => {
-        const allObs = await db.observations.toArray();
-        allObs.forEach((obs) => {
-          if (obs.customFieldValues[fieldToDelete.id]) {
-            delete obs.customFieldValues[fieldToDelete.id];
+      await db.transaction(
+        'rw',
+        db.observations,
+        db.projects,
+        async () => {
+          const allObs = await db.observations
+            .where('projectId')
+            .equals(activeProjectId)
+            .toArray();
+
+          allObs.forEach((obs) => {
+            if (obs.customFieldValues[fieldToDelete.id]) {
+              delete obs.customFieldValues[fieldToDelete.id];
+            }
+          });
+          await db.observations.bulkPut(allObs);
+
+          const project = await db.projects.get(activeProjectId);
+          if (project) {
+            const newFields = project.customFields.filter(
+              (f) => f.id !== fieldToDelete.id
+            );
+            await db.projects.update(activeProjectId, {
+              customFields: newFields,
+            });
           }
-        });
-        await db.observations.bulkPut(allObs);
-        const newFields = customFields.filter(
-          (f) => f.id !== fieldToDelete.id
-        );
-        await db.settings.update(1, { customFields: newFields });
-      });
+        }
+      );
     } catch (error) {
       console.error('Failed to delete field and data:', error);
     }
     closeDeleteDialog();
   };
 
-  // 3. --- Add Project Logic ---
-  const handleAddNewProject = async () => {
+  // --- Add Project Logic ---
+  const handleAddNewProject = async (
+    name: string,
+    customFields: ISettingsCustomField[]
+  ) => {
     try {
-      // Create a new project
       const newProjectId = await db.projects.add({
-        name: 'New Project',
+        name: name,
         createdAt: new Date(),
+        customFields: customFields,
       });
-      // Set it as the active project
       await db.settings.update(1, { activeProjectId: newProjectId });
     } catch (error) {
       console.error('Failed to create new project:', error);
     }
   };
-
 
   // --- Render ---
   const renderList = () => {
@@ -98,7 +123,7 @@ export const SettingsView = () => {
     if (customFields.length === 0) {
       return (
         <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
-          No custom fields defined.
+          No custom fields defined for this project.
         </Typography>
       );
     }
@@ -122,7 +147,7 @@ export const SettingsView = () => {
           Settings
         </Typography>
 
-        {/* --- 4. Project Management Section --- */}
+        {/* --- Project Management Section --- */}
         <Typography variant="h6" sx={{ mt: 3 }}>
           Projects
         </Typography>
@@ -134,7 +159,7 @@ export const SettingsView = () => {
         <Button
           variant="contained"
           startIcon={<CreateNewFolderIcon />}
-          onClick={handleAddNewProject}
+          onClick={() => setIsAddProjectOpen(true)}
           sx={{ mt: 2 }}
         >
           Add New Project
@@ -142,26 +167,45 @@ export const SettingsView = () => {
 
         <Divider sx={{ my: 4 }} />
 
-        {/* --- Custom Fields Section --- */}
+        {/* --- 2. ADD Offline Maps Section --- */}
         <Typography variant="h6" sx={{ mt: 3 }}>
-          Custom Fields
+          Offline Maps
         </Typography>
-        <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-          Define the custom data fields that will appear on the
-          "New Observation" screen.
-        </Typography>
-        <Box sx={{ minHeight: '100px' }}>{renderList()}</Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setIsAddOpen(true)}
-          sx={{ mt: 2 }}
-        >
-          Add Field
-        </Button>
+        <MapDownloader />
+
+        <Divider sx={{ my: 4 }} />
+
+        {/* --- Custom Fields Section --- */}
+        <Box sx={{ opacity: activeProjectId ? 1 : 0.4 }}>
+          <Typography variant="h6" sx={{ mt: 3 }}>
+            Custom Fields
+          </Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+            {activeProjectId
+              ? 'Define custom fields for the active project.'
+              : 'Select a project to manage its custom fields.'}
+          </Typography>
+          <Box sx={{ minHeight: '100px' }}>{renderList()}</Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setIsAddOpen(true)}
+            sx={{ mt: 2 }}
+            disabled={!activeProjectId}
+          >
+            Add Field
+          </Button>
+        </Box>
       </Paper>
 
       {/* --- Dialogs --- */}
+      
+      <AddProjectDialog
+        open={isAddProjectOpen}
+        onClose={() => setIsAddProjectOpen(false)}
+        onSave={handleAddNewProject}
+      />
+
       <AddFieldDialog
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
@@ -177,7 +221,7 @@ export const SettingsView = () => {
           </DialogContentText>
           <DialogContentText color="error" sx={{ mt: 2, fontWeight: 'bold' }}>
             This will also delete ALL captured data for this field
-            from ALL existing observations. This action cannot be undone.
+            from ALL existing observations in this project.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

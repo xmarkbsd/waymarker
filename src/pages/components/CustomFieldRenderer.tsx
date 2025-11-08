@@ -9,8 +9,11 @@ import {
   FormControlLabel,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { useSettings } from '../../hooks/useSettings';
+import { useProjectCustomFields } from '../../hooks/useProjectCustomFields';
 import type { ICustomFieldValues } from '../../db';
+// 1. IMPORT the new component
+import { PhotoReferenceInput } from './PhotoReferenceInput';
+import type { IPhotoReference } from './PhotoReferenceInput'; // 1. IMPORT the type
 
 interface CustomFieldRendererProps {
   values: ICustomFieldValues;
@@ -21,7 +24,7 @@ export const CustomFieldRenderer = ({
   values,
   onChange,
 }: CustomFieldRendererProps) => {
-  const { customFields, loading } = useSettings();
+  const { customFields, loading } = useProjectCustomFields();
 
   if (loading) {
     return <CircularProgress />;
@@ -30,7 +33,7 @@ export const CustomFieldRenderer = ({
   if (customFields.length === 0) {
     return (
       <Typography variant="body2" color="textSecondary">
-        No custom fields defined. Go to Settings to add some.
+        No custom fields defined for this project.
       </Typography>
     );
   }
@@ -42,7 +45,6 @@ export const CustomFieldRenderer = ({
 
         switch (field.type) {
           case 'text':
-          case 'photo_reference':
             return (
               <TextField
                 key={field.id}
@@ -53,6 +55,18 @@ export const CustomFieldRenderer = ({
                 onChange={(e) => onChange(field.id, e.target.value)}
               />
             );
+
+          case 'photo_reference':
+            return (
+              <PhotoReferenceInput
+                key={field.id}
+                label={field.label}
+                // 2. PASS the value (which is an object)
+                value={value as IPhotoReference | null}
+                onChange={(newValue) => onChange(field.id, newValue)}
+              />
+            );
+
           case 'number':
             return (
               <TextField
@@ -62,7 +76,6 @@ export const CustomFieldRenderer = ({
                 label={field.label}
                 type="number"
                 value={value || ''}
-                // FIX: Use parseFloat instead of valueAsNumber
                 onChange={(e) =>
                   onChange(field.id, parseFloat(e.target.value) || null)
                 }
@@ -77,7 +90,6 @@ export const CustomFieldRenderer = ({
                 onChange={(newValue) => {
                   onChange(field.id, newValue ? newValue.toISOString() : null);
                 }}
-                // FIX: Use 'slots' and 'slotProps' for MUI v5+ DatePicker
                 slots={{ textField: TextField }}
                 slotProps={{
                   textField: {

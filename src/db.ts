@@ -21,10 +21,24 @@ export interface ICustomFieldValues {
   [key: string]: any;
 }
 
+export interface ISettingsCustomField {
+  id: string;
+  label: string;
+  type:
+    | 'text'
+    | 'photo_reference'
+    | 'autocomplete'
+    | 'number'
+    | 'date'
+    | 'boolean';
+  options?: string[];
+}
+
 export interface IProject {
   id?: number;
   name: string;
   createdAt: Date;
+  customFields: ISettingsCustomField[];
 }
 
 export interface IObservation {
@@ -45,24 +59,24 @@ export interface ITracklogPoint {
   accuracy: number;
 }
 
-export interface ISettingsCustomField {
-  id: string;
-  label: string;
-  // FIX: Added new advanced field types
-  type:
-    | 'text'
-    | 'photo_reference'
-    | 'autocomplete'
-    | 'number'
-    | 'date'
-    | 'boolean';
-  options?: string[];
+export interface IProjectTemplate {
+  id?: number;
+  name: string;
+  customFields: ISettingsCustomField[];
+}
+
+/**
+ * NEW: Interface for a single map tile
+ */
+export interface IMapTile {
+  id?: string; // Will be 'z-x-y'
+  data: Blob; // The image data
+  timestamp: number; // When it was saved
 }
 
 export interface ISettings {
   id?: number;
   activeProjectId: number | null;
-  customFields: ISettingsCustomField[];
 }
 
 // --- DATABASE CLASS ---
@@ -72,10 +86,13 @@ export class WaymarkerDB extends Dexie {
   observations!: Table<IObservation, number>;
   tracklog!: Table<ITracklogPoint, number>;
   settings!: Table<ISettings, number>;
+  templates!: Table<IProjectTemplate, number>;
+  mapTiles!: Table<IMapTile, string>; // NEW table
 
   constructor() {
     super('WaymarkerDB');
     
+    // Define all versions
     this.version(1).stores({
       observations: '++id, createdAt',
       tracklog: '++id, timestamp',
@@ -97,9 +114,39 @@ export class WaymarkerDB extends Dexie {
       projects: '++id, createdAt',
       settings: 'id',
     });
+    
+    this.version(4).stores({
+      templates: '++id, name',
+      observations: '++id, [projectId+createdAt]',
+      tracklog: '++id, [projectId+timestamp]',
+      projects: '++id, createdAt',
+      settings: 'id',
+    });
 
-    this.on('populate', this.populateV2);
+    this.version(5).stores({
+      templates: '++id, name',
+      projects: '++id, createdAt',
+      settings: 'id',
+      observations: '++id, [projectId+createdAt]',
+      tracklog: '++id, [projectId+timestamp]',
+    }).upgrade(this.migrateToV5);
+
+    // --- Version 6 (Offline Map Tiles) ---
+    this.version(6).stores({
+      mapTiles: '&id, timestamp', // NEW table, 'id' is 'z-x-y'
+      // Re-definitions
+      templates: '++id, name',
+      projects: '++id, createdAt',
+      settings: 'id',
+      observations: '++id, [projectId+createdAt]',
+      tracklog: '++id, [projectId+timestamp]',
+    });
+    // No .upgrade() needed, just adding a new table
+
+    this.on('populate', this.populate);
   }
+
+  // --- MIGRATION FUNCTIONS ---
 
   migrateToV2 = async (tx: Transaction) => {
     const defaultProjectId = await tx.table('projects').add({
@@ -119,15 +166,31 @@ export class WaymarkerDB extends Dexie {
     });
   };
 
-  populateV2 = async () => {
+  migrateToV5 = async (tx: Transaction) => {
+    const settings = await tx.table('settings').get(1);
+    const oldCustomFields = settings.customFields || [];
+    await tx
+      .table('projects')
+      .toCollection()
+      .modify({
+        customFields: oldCustomFields,
+      });
+    await tx.table('settings').update(1, {
+      customFields: undefined,
+    });
+  };
+
+  // --- POPULATE FUNCTION ---
+
+  populate = async () => {
     try {
       const defaultProjectId = await this.projects.add({
         name: 'Default Project',
         createdAt: new Date(),
+        customFields: [],
       });
       await this.settings.add({
         id: 1,
-        customFields: [],
         activeProjectId: defaultProjectId,
       });
     } catch (error) {

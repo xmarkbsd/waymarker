@@ -15,6 +15,8 @@ import {
   DialogContentText,
   Box,
   Typography,
+  Tooltip,
+  CircularProgress, // 1. IMPORT CircularProgress
 } from '@mui/material';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
@@ -24,24 +26,25 @@ import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
 import { useState } from 'react';
+import { SaveTemplateDialog } from './SaveTemplateDialog';
 
 export const ProjectManager = () => {
   // --- Hooks ---
   const allProjects = useLiveQuery(() => db.projects.toArray(), []);
   const activeProjectId = useActiveProject();
 
-  // State for Rename dialog
+  // --- State ---
   const [renameProject, setRenameProject] = useState<IProject | null>(null);
   const [newName, setNewName] = useState('');
-
-  // State for Delete dialog
   const [deleteProject, setDeleteProject] = useState<IProject | null>(null);
+  const [templateProject, setTemplateProject] = useState<IProject | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false); // 2. ADD isDeleting state
 
   // --- Handlers ---
   const handleSwitchProject = async (projectId: number) => {
     try {
-      // Update the activeProjectId in the settings document
       await db.settings.update(1, { activeProjectId: projectId });
     } catch (error) {
       console.error('Failed to switch project:', error);
@@ -53,12 +56,10 @@ export const ProjectManager = () => {
     setRenameProject(project);
     setNewName(project.name);
   };
-
   const closeRenameDialog = () => {
     setRenameProject(null);
     setNewName('');
   };
-
   const handleConfirmRename = async () => {
     if (!renameProject || !newName) return;
     try {
@@ -73,16 +74,17 @@ export const ProjectManager = () => {
   const openDeleteDialog = (project: IProject) => {
     setDeleteProject(project);
   };
-
   const closeDeleteDialog = () => {
+    if (isDeleting) return; // Prevent close
     setDeleteProject(null);
   };
-
+  
+  // 3. UPDATE handleConfirmDelete
   const handleConfirmDelete = async () => {
     if (!deleteProject) return;
 
+    setIsDeleting(true); // 4. SET deleting state
     try {
-      // Use a transaction to delete all project data
       await db.transaction(
         'rw',
         db.projects,
@@ -90,32 +92,46 @@ export const ProjectManager = () => {
         db.tracklog,
         db.settings,
         async () => {
-          // 1. Delete all observations for this project
           await db.observations
             .where('projectId')
             .equals(deleteProject.id!)
             .delete();
-
-          // 2. Delete all tracklog points for this project
           await db.tracklog
             .where('projectId')
             .equals(deleteProject.id!)
             .delete();
-
-          // 3. Delete the project itself
           await db.projects.delete(deleteProject.id!);
-
-          // 4. Check if the deleted project was the active one
           if (activeProjectId === deleteProject.id) {
-            // It was. Set active project to null.
             await db.settings.update(1, { activeProjectId: null });
           }
         }
       );
     } catch (error) {
       console.error('Failed to delete project:', error);
+    } finally {
+      setIsDeleting(false); // 5. UNSET deleting state
+      closeDeleteDialog();
     }
-    closeDeleteDialog();
+  };
+
+  // --- Save Template Logic ---
+  const openTemplateDialog = (project: IProject) => {
+    setTemplateProject(project);
+  };
+  const closeTemplateDialog = () => {
+    setTemplateProject(null);
+  };
+  const handleConfirmSaveTemplate = async (templateName: string) => {
+    if (!templateProject) return;
+    try {
+      await db.templates.add({
+        name: templateName,
+        customFields: templateProject.customFields,
+      });
+    } catch (error) {
+      console.error('Failed to save template:', error);
+    }
+    closeTemplateDialog();
   };
 
   // --- Render ---
@@ -131,22 +147,36 @@ export const ProjectManager = () => {
             key={project.id}
             secondaryAction={
               <>
-                <IconButton
-                  edge="end"
-                  aria-label="rename"
-                  onClick={() => openRenameDialog(project)}
-                >
-                  <EditIcon />
-                </IconButton>
-                <IconButton
-                  edge="end"
-                  aria-label="delete"
-                  onClick={() => openDeleteDialog(project)}
-                  // Prevent deleting the last project
-                  disabled={allProjects.length <= 1}
-                >
-                  <DeleteIcon />
-                </IconButton>
+                <Tooltip title="Save as Template">
+                  <IconButton
+                    edge="end"
+                    aria-label="save as template"
+                    onClick={() => openTemplateDialog(project)}
+                  >
+                    <SaveIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Rename">
+                  <IconButton
+                    edge="end"
+                    aria-label="rename"
+                    onClick={() => openRenameDialog(project)}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete">
+                  <span>
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={() => openDeleteDialog(project)}
+                      disabled={allProjects.length <= 1}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
               </>
             }
           >
@@ -193,6 +223,7 @@ export const ProjectManager = () => {
       </Dialog>
 
       {/* Delete Dialog */}
+      {/* 6. UPDATE Dialog Actions */}
       <Dialog open={!!deleteProject} onClose={closeDeleteDialog}>
         <DialogTitle>Delete Project?</DialogTitle>
         <DialogContent>
@@ -206,12 +237,30 @@ export const ProjectManager = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDeleteDialog}>Cancel</Button>
-          <Button onClick={handleConfirmDelete} color="error">
-            Delete
+          <Button onClick={closeDeleteDialog} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Delete'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Save Template Dialog */}
+      <SaveTemplateDialog
+        open={!!templateProject}
+        onClose={closeTemplateDialog}
+        onSave={handleConfirmSaveTemplate}
+        suggestedName={templateProject?.name || ''}
+      />
     </Box>
   );
 };

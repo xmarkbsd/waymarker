@@ -29,8 +29,8 @@ interface ObservationListViewProps {
 export const ObservationListView = ({ onEdit }: ObservationListViewProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedObs, setSelectedObs] = useState<IObservation | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false); // 1. ADD isDeleting state
   const activeProjectId = useActiveProject();
-  
   const [searchTerm, setSearchTerm] = useState('');
 
   const observations = useLiveQuery(
@@ -41,7 +41,7 @@ export const ObservationListView = ({ onEdit }: ObservationListViewProps) => {
         .where('[projectId+createdAt]')
         .between(
           [activeProjectId, Dexie.minKey],
-          [activeProjectId, Dexie.maxKey] // <-- FIX: Was DexDax
+          [activeProjectId, Dexie.maxKey]
         );
 
       if (searchTerm) {
@@ -64,19 +64,26 @@ export const ObservationListView = ({ onEdit }: ObservationListViewProps) => {
   };
 
   const closeDeleteDialog = () => {
+    if (isDeleting) return; // Don't close if delete is in progress
     setSelectedObs(null);
     setDialogOpen(false);
   };
 
+  // 2. UPDATE handleDelete
   const handleDelete = async () => {
     if (selectedObs?.id) {
+      setIsDeleting(true); // 3. SET deleting state
       try {
         await db.observations.delete(selectedObs.id);
+        // Success
       } catch (error) {
         console.error('Failed to delete observation:', error);
+        // Show snackbar error
+      } finally {
+        setIsDeleting(false); // 4. UNSET deleting state
+        closeDeleteDialog();
       }
     }
-    closeDeleteDialog();
   };
 
   if (!observations || !activeProjectId) {
@@ -135,6 +142,7 @@ export const ObservationListView = ({ onEdit }: ObservationListViewProps) => {
         </List>
       )}
 
+      {/* 5. UPDATE Dialog Actions */}
       <Dialog open={dialogOpen} onClose={closeDeleteDialog}>
         <DialogTitle>Delete Observation?</DialogTitle>
         <DialogContent>
@@ -145,9 +153,15 @@ export const ObservationListView = ({ onEdit }: ObservationListViewProps) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDeleteDialog}>Cancel</Button>
-          <Button onClick={handleDelete} color="error">
-            Delete
+          <Button onClick={closeDeleteDialog} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleDelete} color="error" disabled={isDeleting}>
+            {isDeleting ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Delete'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
