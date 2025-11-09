@@ -70,7 +70,7 @@ const createObservationPlacemark = (
       <name>${escapeXml(obs.coreFields.name)}</name>
       <timestamp>${obs.createdAt.toISOString()}</timestamp>
       <ExtendedData>${extendedData}
-      </Data>
+      </ExtendedData>
       <Point>
         <coordinates>${coords}</coordinates>
       </Point>
