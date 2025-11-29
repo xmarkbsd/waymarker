@@ -1,8 +1,9 @@
 // src/pages/MapView.tsx
 
 import { Box } from '@mui/material';
-import { MapContainer } from 'react-leaflet'; // 1. REMOVE TileLayer
+import { MapContainer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import './styles/mapView.css';
 
 // Fix for default Leaflet icon issue
 import L from 'leaflet';
@@ -13,7 +14,8 @@ import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 import { ObservationMarkers } from './components/ObservationMarkers';
 import { TracklogPolyline } from './components/TracklogPolyline';
 import { UserLocationMarker } from './components/UserLocationMarker';
-import { CustomOfflineTileLayer } from './components/OfflineTileLayer'; // 2. IMPORT our new layer
+import { CustomOfflineTileLayer } from './components/OfflineTileLayer';
+import { LayerControl } from './components/LayerControl';
 
 L.Icon.Default.mergeOptions({
   iconUrl,
@@ -29,8 +31,8 @@ export const MapView = () => {
         zoom={13}
         style={{ height: '100%', width: '100%' }}
       >
-        {/* 3. USE our custom offline-first tile layer */}
         <CustomOfflineTileLayer />
+        <LayerControl />
 
         <ObservationMarkers />
         <TracklogPolyline />

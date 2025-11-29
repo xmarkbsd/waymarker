@@ -18,6 +18,7 @@ import {
 import 'leaflet/dist/leaflet.css';
 import type { LatLngBounds } from 'leaflet'; // Import type directly
 import { UserLocationMarker } from './UserLocationMarker';
+import { LayerControl } from './LayerControl';
 import { downloadTiles, clearOfflineTiles } from '../../services/tileService';
 
 // This component captures the map's current bounds
@@ -73,19 +74,36 @@ export const MapDownloader = () => {
       </Typography>
 
       {/* 1. The Map UI */}
-      <Box sx={{ height: '300px', width: '100%', mb: 2 }}>
-        <MapContainer
-          center={[51.505, -0.09]}
-          zoom={13}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <UserLocationMarker />
-          <MapBoundsCapture setBounds={setBounds} />
-        </MapContainer>
+      <Box sx={{ 
+        position: 'relative',
+        width: '100%',
+        paddingBottom: '56.25%',
+        mb: 2,
+        maxHeight: { xs: '250px', sm: '350px', md: '450px' },
+        overflow: 'hidden'
+      }}>
+        <Box sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 1
+        }}>
+          <MapContainer
+            center={[51.505, -0.09]}
+            zoom={13}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <LayerControl />
+            <UserLocationMarker positionOverride={{ bottom: '10px', left: '10px', top: 'auto' }} />
+            <MapBoundsCapture setBounds={setBounds} />
+          </MapContainer>
+        </Box>
       </Box>
 
       {/* 2. Download Controls */}

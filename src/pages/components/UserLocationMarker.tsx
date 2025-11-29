@@ -7,6 +7,15 @@ import MyLocationIcon from '@mui/icons-material/MyLocation';
 import { useEffect } from 'react';
 import L from 'leaflet';
 
+interface UserLocationMarkerProps {
+  positionOverride?: {
+    top?: string;
+    bottom?: string;
+    left?: string;
+    right?: string;
+  };
+}
+
 // Create a custom 'blue dot' icon
 const blueDotIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
@@ -20,9 +29,18 @@ const blueDotIcon = new L.Icon({
   iconAnchor: [12, 12],
 });
 
-export const UserLocationMarker = () => {
+export const UserLocationMarker = ({ positionOverride }: UserLocationMarkerProps) => {
   const map = useMap();
   const geoState = useGeolocation(true); // Watch position
+
+  const defaultPosition = {
+    top: '90px',
+    left: '10px',
+    bottom: undefined,
+    right: undefined,
+  };
+
+  const position = positionOverride ? { ...defaultPosition, ...positionOverride } : defaultPosition;
 
   const handleFlyTo = () => {
     if (geoState.status === 'Locked') {
@@ -44,19 +62,28 @@ export const UserLocationMarker = () => {
       <Box
         sx={{
           position: 'absolute',
-          top: '10px', // Leaflet controls are top-left by default
-          left: '10px', // We'll place it under the zoom
-          zIndex: 1000,
+          ...position,
+          zIndex: 1001,
           backgroundColor: 'white',
           borderRadius: '4px',
           boxShadow: '0 1px 5px rgba(0,0,0,0.65)',
         }}
       >
         <IconButton
+          size="small"
           onClick={handleFlyTo}
           disabled={geoState.status !== 'Locked'}
+          sx={{
+            color: 'rgba(0,0,0,0.6)',
+            '&:hover': {
+              backgroundColor: 'rgba(0,0,0,0.05)',
+            },
+            '&.Mui-disabled': {
+              color: 'rgba(0,0,0,0.26)',
+            },
+          }}
         >
-          <MyLocationIcon />
+          <MyLocationIcon fontSize="small" />
         </IconButton>
       </Box>
 
