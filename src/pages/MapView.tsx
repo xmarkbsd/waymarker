@@ -52,3 +52,4 @@ export const MapView = () => {
       <MapFilterPanel filters={filters} onFiltersChange={setFilters} />
     </Box>
   );
+};
