@@ -40,6 +40,7 @@ import { useActiveProject } from './hooks/useActiveProject';
 
 // Import Services
 import { generateKML } from './services/kmlGenerator';
+import { generateCSV } from './services/csvGenerator';
 import { parseKML } from './services/kmlParser';
 import { db } from './db';
 import type { IProject } from './db';
@@ -120,6 +121,31 @@ export const App = () => {
     if (project) {
       setProjectToExport(project);
       setIsZipExportOpen(true);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    handleMenuClose();
+    if (!activeProjectId) {
+      setSnackbar({ open: true, message: 'No active project to export.', severity: 'error' });
+      return;
+    }
+    try {
+      const csvData = await generateCSV(activeProjectId);
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+      link.download = `waymarker_export_${timestamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      setSnackbar({ open: true, message: 'CSV Export successful.', severity: 'success' });
+    } catch (error) {
+      console.error('Failed to export CSV:', error);
+      setSnackbar({ open: true, message: 'CSV export failed.', severity: 'error' });
     }
   };
 
@@ -205,6 +231,9 @@ export const App = () => {
             </MenuItem>
             <MenuItem onClick={handleExportKMLOnly} disabled={!activeProjectId}>
               Export KML Only
+            </MenuItem>
+            <MenuItem onClick={handleExportCSV} disabled={!activeProjectId}>
+              Export CSV Only
             </MenuItem>
             <MenuItem onClick={handleZipExport} disabled={!activeProjectId}>
               Export Zip Bundle...
