@@ -12,10 +12,6 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 
-// Optional: Test harness for manual testing (uncomment to use)
-// import { createTestDataInBrowser } from './testHarness';
-// createTestDataInBrowser().catch(console.error);
-
 // 1. IMPORT Date Adapter
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
