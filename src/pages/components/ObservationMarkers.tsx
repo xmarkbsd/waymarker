@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Marker, Popup } from 'react-leaflet';
-import { MarkerClusterGroup } from 'react-leaflet-markercluster';
+import MarkerClusterGroup from 'react-leaflet-markercluster';
 // The react-leaflet-markercluster package references a packaged stylesheet
 // that isn't available under some installs. Use the upstream markercluster
 // stylesheet files from the leaflet.markercluster package instead.
