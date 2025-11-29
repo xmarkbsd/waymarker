@@ -1,5 +1,6 @@
 // src/pages/MapView.tsx
 
+import { useState } from 'react';
 import { Box } from '@mui/material';
 import { MapContainer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -16,6 +17,8 @@ import { TracklogPolyline } from './components/TracklogPolyline';
 import { UserLocationMarker } from './components/UserLocationMarker';
 import { CustomOfflineTileLayer } from './components/OfflineTileLayer';
 import { LayerControl } from './components/LayerControl';
+import { MapFilterPanel } from './components/MapFilterPanel';
+import type { MapFilters } from './components/MapFilterPanel';
 
 L.Icon.Default.mergeOptions({
   iconUrl,
@@ -24,8 +27,15 @@ L.Icon.Default.mergeOptions({
 });
 
 export const MapView = () => {
+  const [filters, setFilters] = useState<MapFilters>({
+    enabled: false,
+    dateRange: 'all',
+    customFieldId: null,
+    customFieldValue: null,
+  });
+
   return (
-    <Box sx={{ height: 'calc(100vh - 128px)', width: '100%' }}>
+    <Box sx={{ height: 'calc(100vh - 128px)', width: '100%', position: 'relative' }}>
       <MapContainer
         center={[51.505, -0.09]}
         zoom={13}
@@ -34,10 +44,11 @@ export const MapView = () => {
         <CustomOfflineTileLayer />
         <LayerControl />
 
-        <ObservationMarkers />
+        <ObservationMarkers filters={filters} />
         <TracklogPolyline />
         <UserLocationMarker />
       </MapContainer>
+
+      <MapFilterPanel filters={filters} onFiltersChange={setFilters} />
     </Box>
   );
-};

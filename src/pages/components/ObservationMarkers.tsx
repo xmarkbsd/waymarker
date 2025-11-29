@@ -1,13 +1,21 @@
 // src/pages/components/ObservationMarkers.tsx
 
+import React from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import { MarkerClusterGroup } from 'react-leaflet-markercluster';
 import 'react-leaflet-markercluster/dist/styles.min.css';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import { useActiveProject } from '../../hooks/useActiveProject'; // 1. IMPORT hook
+import { useActiveProject } from '../../hooks/useActiveProject';
+import type { MapFilters } from './MapFilterPanel';
 
-export const ObservationMarkers = () => {
+interface ObservationMarkersProps {
+  filters?: MapFilters;
+}
+
+export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
+  filters,
+}) => {
   // 2. GET active project
   const activeProjectId = useActiveProject();
 
@@ -27,9 +35,43 @@ export const ObservationMarkers = () => {
     return null; // Don't render anything while loading
   }
 
+  // Apply filters if enabled
+  let filteredObservations = observations;
+
+  if (filters && filters.enabled) {
+    const now = new Date();
+    const filterDate = new Date();
+
+    if (filters.dateRange === 'week') {
+      filterDate.setDate(now.getDate() - 7);
+    } else if (filters.dateRange === 'month') {
+      filterDate.setDate(now.getDate() - 30);
+    }
+
+    filteredObservations = observations.filter((obs) => {
+      // Date filter
+      if (filters.dateRange !== 'all' && obs.createdAt < filterDate) {
+        return false;
+      }
+
+      // Custom field filter
+      if (
+        filters.customFieldId &&
+        filters.customFieldValue
+      ) {
+        const fieldValue = obs.customFieldValues[filters.customFieldId];
+        if (fieldValue !== filters.customFieldValue) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }
+
   return (
     <MarkerClusterGroup>
-      {observations.map((obs) => (
+      {filteredObservations.map((obs) => (
         <Marker
           key={obs.id}
           position={[obs.geometry.latitude, obs.geometry.longitude]}
