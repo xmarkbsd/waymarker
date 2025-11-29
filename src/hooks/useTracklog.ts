@@ -2,6 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 import { db } from '../db';
+import {
+  requestScreenWakeLock,
+  releaseScreenWakeLock,
+  reacquireScreenWakeLockIfNeeded,
+} from '../services/screenWakeLock';
 import type { ITracklogPoint } from '../db';
 
 const geolocationOptions: PositionOptions = {
@@ -46,6 +51,11 @@ export const useTracklog = (
 
     if (isRecording) {
       if (watchId.current === null) {
+        // Request screen wake lock to keep device awake during tracking
+        requestScreenWakeLock().catch((error) => {
+          console.error('Failed to request screen wake lock:', error);
+        });
+
         watchId.current = navigator.geolocation.watchPosition(
           handleSuccess,
           handleError,
@@ -54,6 +64,11 @@ export const useTracklog = (
       }
     } else {
       if (watchId.current !== null) {
+        // Release screen wake lock when tracking stops
+        releaseScreenWakeLock().catch((error) => {
+          console.error('Failed to release screen wake lock:', error);
+        });
+
         navigator.geolocation.clearWatch(watchId.current);
         watchId.current = null;
       }
@@ -62,7 +77,28 @@ export const useTracklog = (
     return () => {
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
+        releaseScreenWakeLock().catch((error) => {
+          console.error('Failed to release screen wake lock:', error);
+        });
       }
     };
   }, [isRecording, activeProjectId]); // 4. ADD activeProjectId to dependencies
+
+  // Handle page visibility changes to re-acquire wake lock if needed
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isRecording) {
+        // Page became visible again while recording
+        reacquireScreenWakeLockIfNeeded().catch((error) => {
+          console.error('Failed to re-acquire screen wake lock:', error);
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isRecording]);
 };

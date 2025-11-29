@@ -16,6 +16,7 @@ import {
   Typography,
   Snackbar,
   Alert,
+  Tooltip,
 } from '@mui/material';
 
 // Import Icons
@@ -235,13 +236,25 @@ export const App = () => {
             Waymarker
           </Typography>
 
-          <IconButton
-            color="inherit"
-            onClick={() => setIsRecording(!isRecording)}
-            disabled={!activeProjectId}
+          <Tooltip
+            title={
+              isRecording
+                ? 'Recording tracklog (increased battery usage)'
+                : activeProjectId
+                  ? 'Start recording tracklog'
+                  : 'Select a project to start recording'
+            }
           >
-            {isRecording ? <StopIcon sx={{ color: 'red' }} /> : <FiberManualRecordIcon />}
-          </IconButton>
+            <span>
+              <IconButton
+                color="inherit"
+                onClick={() => setIsRecording(!isRecording)}
+                disabled={!activeProjectId}
+              >
+                {isRecording ? <StopIcon sx={{ color: 'red' }} /> : <FiberManualRecordIcon />}
+              </IconButton>
+            </span>
+          </Tooltip>
 
           <IconButton color="inherit" onClick={handleMenu}>
             <MoreVertIcon />
@@ -270,6 +283,24 @@ export const App = () => {
           </Menu>
         </Toolbar>
       </AppBar>
+
+      {isRecording && (
+        <Alert
+          severity="warning"
+          sx={{
+            margin: 0,
+            borderRadius: 0,
+            backgroundColor: '#ff6f00',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          <strong>🔴 Recording Tracklog</strong> - Screen is kept awake to maintain GPS tracking.
+          This uses increased battery power. Tap the recording button to stop.
+        </Alert>
+      )}
 
       <Container
         component="main"
