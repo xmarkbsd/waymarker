@@ -41,6 +41,7 @@ import { useActiveProject } from './hooks/useActiveProject';
 // Import Services
 import { generateKML } from './services/kmlGenerator';
 import { generateCSV } from './services/csvGenerator';
+import { generateTextReport } from './services/textReportGenerator';
 import { parseKML } from './services/kmlParser';
 import { db } from './db';
 import type { IProject } from './db';
@@ -149,6 +150,31 @@ export const App = () => {
     }
   };
 
+  const handleExportTextReport = async () => {
+    handleMenuClose();
+    if (!activeProjectId) {
+      setSnackbar({ open: true, message: 'No active project to export.', severity: 'error' });
+      return;
+    }
+    try {
+      const reportData = await generateTextReport(activeProjectId);
+      const blob = new Blob([reportData], { type: 'text/plain;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+      link.download = `waymarker_report_${timestamp}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      setSnackbar({ open: true, message: 'Text Report Export successful.', severity: 'success' });
+    } catch (error) {
+      console.error('Failed to export text report:', error);
+      setSnackbar({ open: true, message: 'Text report export failed.', severity: 'error' });
+    }
+  };
+
   // --- Import Logic ---
   const handleImportClick = () => {
     handleMenuClose();
@@ -234,6 +260,9 @@ export const App = () => {
             </MenuItem>
             <MenuItem onClick={handleExportCSV} disabled={!activeProjectId}>
               Export CSV Only
+            </MenuItem>
+            <MenuItem onClick={handleExportTextReport} disabled={!activeProjectId}>
+              Export Text Report
             </MenuItem>
             <MenuItem onClick={handleZipExport} disabled={!activeProjectId}>
               Export Zip Bundle...
