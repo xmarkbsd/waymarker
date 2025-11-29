@@ -3,7 +3,11 @@
 import React from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import { MarkerClusterGroup } from 'react-leaflet-markercluster';
-import 'react-leaflet-markercluster/dist/styles.min.css';
+// The react-leaflet-markercluster package references a packaged stylesheet
+// that isn't available under some installs. Use the upstream markercluster
+// stylesheet files from the leaflet.markercluster package instead.
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useActiveProject } from '../../hooks/useActiveProject';
