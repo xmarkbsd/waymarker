@@ -24,9 +24,11 @@
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-leaflet": "^5.0.0",
+    "react-leaflet-markercluster": "^5.0.0-rc.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

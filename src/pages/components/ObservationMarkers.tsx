@@ -1,6 +1,8 @@
 // src/pages/components/ObservationMarkers.tsx
 
 import { Marker, Popup } from 'react-leaflet';
+import { MarkerClusterGroup } from 'react-leaflet-markercluster';
+import 'react-leaflet-markercluster/dist/styles.min.css';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useActiveProject } from '../../hooks/useActiveProject'; // 1. IMPORT hook
@@ -26,7 +28,7 @@ export const ObservationMarkers = () => {
   }
 
   return (
-    <>
+    <MarkerClusterGroup>
       {observations.map((obs) => (
         <Marker
           key={obs.id}
@@ -39,6 +41,6 @@ export const ObservationMarkers = () => {
           </Popup>
         </Marker>
       ))}
-    </>
+    </MarkerClusterGroup>
   );
 };
