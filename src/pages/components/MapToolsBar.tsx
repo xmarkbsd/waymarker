@@ -154,15 +154,25 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          backgroundColor: 'rgba(255,255,255,0.95)',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: '#fff',
+          backdropFilter: 'blur(4px)',
           borderRadius: 2,
           boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
           padding: '6px 10px',
           overflowX: 'auto',
+          '& .MuiIconButton-root': { color: '#fff' },
+          '& .MuiIconButton-root.active': { color: '#4fc3f7' },
+          '& .MuiIconButton-root.Mui-disabled': { color: 'rgba(255,255,255,0.35)' },
         }}
       >
         <Tooltip title="Filters">
-          <IconButton size="small" color={filters.enabled ? 'primary' : 'default'} onClick={openFilter}>
+          <IconButton
+            size="small"
+            onClick={openFilter}
+            className={filters.enabled ? 'active' : undefined}
+            aria-label="Filters"
+          >
             <FilterListIcon />
           </IconButton>
         </Tooltip>
@@ -170,8 +180,9 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         <Tooltip title="Measure distance">
           <IconButton
             size="small"
-            color={measureMode === 'line' ? 'primary' : 'default'}
             onClick={() => startMeasure('line')}
+            className={measureMode === 'line' ? 'active' : undefined}
+            aria-label="Measure distance"
           >
             <TimelineIcon />
           </IconButton>
@@ -179,14 +190,20 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         <Tooltip title="Measure area">
           <IconButton
             size="small"
-            color={measureMode === 'polygon' ? 'primary' : 'default'}
             onClick={() => startMeasure('polygon')}
+            className={measureMode === 'polygon' ? 'active' : undefined}
+            aria-label="Measure area"
           >
             <LayersIcon />
           </IconButton>
         </Tooltip>
         <Tooltip title="Clear measurement">
-          <IconButton size="small" onClick={clearMeasure} disabled={measureMode === 'none'}>
+          <IconButton
+            size="small"
+            onClick={clearMeasure}
+            disabled={measureMode === 'none'}
+            aria-label="Clear measurement"
+          >
             <DeleteIcon />
           </IconButton>
         </Tooltip>
