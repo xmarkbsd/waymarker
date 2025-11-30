@@ -193,6 +193,9 @@ export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
           showCoverageOnHover={false}
           spiderfyOnEveryZoom={true}
           removeOutsideVisibleBounds={false}
+          maxClusterRadius={40}
+          disableClusteringAtZoom={18}
+          chunkedLoading={true}
         >
           {markers}
         </MarkerClusterGroup>
