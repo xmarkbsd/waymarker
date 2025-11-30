@@ -19,6 +19,7 @@ import { CustomOfflineTileLayer } from './components/OfflineTileLayer';
 import { LayerControl } from './components/LayerControl';
 import { MapFilterPanel } from './components/MapFilterPanel';
 import type { MapFilters } from './components/MapFilterPanel';
+import { MapMeasurementTool } from './components/MapMeasurementTool';
 
 L.Icon.Default.mergeOptions({
   iconUrl,
@@ -47,6 +48,7 @@ export const MapView = () => {
         <ObservationMarkers filters={filters} />
         <TracklogPolyline />
         <UserLocationMarker />
+        <MapMeasurementTool />
       </MapContainer>
 
       <MapFilterPanel filters={filters} onFiltersChange={setFilters} />
