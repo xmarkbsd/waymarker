@@ -17,9 +17,8 @@ import { TracklogPolyline } from './components/TracklogPolyline';
 import { UserLocationMarker } from './components/UserLocationMarker';
 import { CustomOfflineTileLayer } from './components/OfflineTileLayer';
 import { LayerControl } from './components/LayerControl';
-import { MapFilterPanel } from './components/MapFilterPanel';
 import type { MapFilters } from './components/MapFilterPanel';
-import { MapMeasurementTool } from './components/MapMeasurementTool';
+import { MapToolsBar } from './components/MapToolsBar';
 
 L.Icon.Default.mergeOptions({
   iconUrl,
@@ -48,10 +47,9 @@ export const MapView = () => {
         <ObservationMarkers filters={filters} />
         <TracklogPolyline />
         <UserLocationMarker />
-        <MapMeasurementTool />
+        <MapToolsBar filters={filters} onFiltersChange={setFilters} />
       </MapContainer>
-
-      <MapFilterPanel filters={filters} onFiltersChange={setFilters} />
+      {/* Removed top-right filter & measurement panels in favor of consolidated bottom toolbar */}
     </Box>
   );
 };
