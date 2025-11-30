@@ -26,6 +26,7 @@ import LayersIcon from '@mui/icons-material/Layers';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import { db } from '../../db';
@@ -42,6 +43,8 @@ interface MapToolsBarProps {
   filters: MapFilters;
   onFiltersChange: (filters: MapFilters) => void;
   onPlaceObservation?: (lat: number, lng: number) => void;
+  moveMode?: boolean;
+  onMoveModeChange?: (enabled: boolean) => void;
 }
 
 // Helpers using turf.js for accurate geodesic distance and area
@@ -63,7 +66,7 @@ const turfPolygonAreaMeters = (coords: [number, number][]) => {
   return turf.area(poly);
 };
 
-export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange, onPlaceObservation }) => {
+export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange, onPlaceObservation, moveMode, onMoveModeChange }) => {
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const activeProjectId = useActiveProject();
@@ -81,6 +84,20 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
   const [placementMode, setPlacementMode] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+  // Move mode handlers
+  const toggleMoveMode = () => {
+    if (onMoveModeChange) {
+      onMoveModeChange(!moveMode);
+      // Disable other modes when move mode is activated
+      if (!moveMode) {
+        setPlacementMode(false);
+        setMeasureMode('none');
+        setPoints([]);
+        setFinished(false);
+      }
+    }
+  };
 
   // Filter popover
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
@@ -240,6 +257,17 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
           </IconButton>
         </Tooltip>
         <Divider orientation="vertical" flexItem />
+        <Tooltip title="Move observations">
+          <IconButton
+            size={isSmall ? 'medium' : 'small'}
+            onClick={toggleMoveMode}
+            className={moveMode ? 'active' : undefined}
+            aria-label="Move observations"
+          >
+            <OpenWithIcon />
+          </IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem />
         <Tooltip title="Measure distance">
           <IconButton
             size={isSmall ? 'medium' : 'small'}
@@ -376,6 +404,29 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             Tap map to place new observation
+          </Typography>
+        </Box>
+      )}
+
+      {/* Move mode indicator banner */}
+      {moveMode && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 10,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 410,
+            backgroundColor: 'rgba(255, 193, 7, 0.95)',
+            color: '#000',
+            padding: '8px 16px',
+            borderRadius: 2,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+            pointerEvents: 'none',
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Drag markers to move observations
           </Typography>
         </Box>
       )}

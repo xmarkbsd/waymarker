@@ -28,9 +28,11 @@ L.Icon.Default.mergeOptions({
 
 interface MapViewProps {
   onPlaceObservation?: (lat: number, lng: number) => void;
+  moveMode?: boolean;
+  onMoveModeChange?: (enabled: boolean) => void;
 }
 
-export const MapView: React.FC<MapViewProps> = ({ onPlaceObservation }) => {
+export const MapView: React.FC<MapViewProps> = ({ onPlaceObservation, moveMode, onMoveModeChange }) => {
   const [filters, setFilters] = useState<MapFilters>({
     enabled: false,
     dateRange: 'all',
@@ -48,10 +50,16 @@ export const MapView: React.FC<MapViewProps> = ({ onPlaceObservation }) => {
         <CustomOfflineTileLayer />
         <LayerControl />
 
-        <ObservationMarkers filters={filters} />
+        <ObservationMarkers filters={filters} moveMode={moveMode} />
         <TracklogPolyline />
         <UserLocationMarker />
-        <MapToolsBar filters={filters} onFiltersChange={setFilters} onPlaceObservation={onPlaceObservation} />
+        <MapToolsBar 
+          filters={filters} 
+          onFiltersChange={setFilters} 
+          onPlaceObservation={onPlaceObservation}
+          moveMode={moveMode}
+          onMoveModeChange={onMoveModeChange}
+        />
       </MapContainer>
       {/* Removed top-right filter & measurement panels in favor of consolidated bottom toolbar */}
     </Box>

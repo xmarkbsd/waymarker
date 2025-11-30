@@ -1,9 +1,10 @@
 // src/pages/components/ObservationMarkers.tsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
+import { Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, Typography } from '@mui/material';
 // The react-leaflet-markercluster package references a packaged stylesheet
 // that isn't available under some installs. Use the upstream markercluster
 // stylesheet files from the leaflet.markercluster package instead.
@@ -16,11 +17,22 @@ import type { MapFilters } from '../../types/mapFilters';
 
 interface ObservationMarkersProps {
   filters?: MapFilters;
+  moveMode?: boolean;
 }
 
 export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
   filters,
+  moveMode,
 }) => {
+  const [draggedObservation, setDraggedObservation] = useState<{
+    id: number;
+    oldLat: number;
+    oldLng: number;
+    newLat: number;
+    newLng: number;
+  } | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
   // 2. GET active project
   const activeProjectId = useActiveProject();
 
@@ -95,14 +107,66 @@ export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
     return undefined; // Use default blue
   };
 
-  return (
-    <MarkerClusterGroup>
-      {filteredObservations.map((obs) => (
-        <Marker
-          key={obs.id}
-          position={[obs.geometry.latitude, obs.geometry.longitude]}
-          icon={getMarkerIcon(obs.geometry.source)}
-        >
+  const handleDragEnd = async (obsId: number, oldLat: number, oldLng: number, event: L.DragEndEvent) => {
+    const newPos = event.target.getLatLng();
+    setDraggedObservation({
+      id: obsId,
+      oldLat,
+      oldLng,
+      newLat: newPos.lat,
+      newLng: newPos.lng,
+    });
+    setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmMove = async () => {
+    if (!draggedObservation) return;
+
+    const obs = await db.observations.get(draggedObservation.id);
+    if (!obs) return;
+
+    // Update observation with new coordinates and source
+    await db.observations.update(draggedObservation.id, {
+      geometry: {
+        ...obs.geometry,
+        latitude: draggedObservation.newLat,
+        longitude: draggedObservation.newLng,
+        source: 'user-moved',
+      },
+      locationHistory: [
+        ...(obs.locationHistory || []),
+        {
+          timestamp: new Date(),
+          latitude: draggedObservation.oldLat,
+          longitude: draggedObservation.oldLng,
+          altitude: obs.geometry.altitude,
+          accuracy: obs.geometry.accuracy,
+          source: obs.geometry.source || 'gps',
+        },
+      ],
+    });
+
+    setConfirmDialogOpen(false);
+    setDraggedObservation(null);
+  };
+
+  const handleCancelMove = () => {
+    setConfirmDialogOpen(false);
+    setDraggedObservation(null);
+    // Force re-render to reset marker position
+    window.location.reload();
+  };
+
+  const markers = filteredObservations.map((obs) => (
+    <Marker
+      key={obs.id}
+      position={[obs.geometry.latitude, obs.geometry.longitude]}
+      icon={getMarkerIcon(obs.geometry.source)}
+      draggable={moveMode || false}
+      eventHandlers={{
+        dragend: (e: L.DragEndEvent) => handleDragEnd(obs.id!, obs.geometry.latitude, obs.geometry.longitude, e),
+      }}
+    >
           <Popup>
             <b>{obs.coreFields.name}</b>
             <br />
@@ -117,7 +181,44 @@ export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
             )}
           </Popup>
         </Marker>
-      ))}
-    </MarkerClusterGroup>
+  ));
+
+  return (
+    <>
+      {/* Disable clustering in move mode to allow dragging */}
+      {moveMode ? (
+        markers
+      ) : (
+        <MarkerClusterGroup>
+          {markers}
+        </MarkerClusterGroup>
+      )}
+      
+      {/* Move confirmation dialog */}
+      <Dialog open={confirmDialogOpen} onClose={handleCancelMove}>
+        <DialogTitle>Confirm Move</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Move this observation to the new location?
+            <br />
+            <br />
+            <strong>Old location:</strong> {draggedObservation?.oldLat.toFixed(6)}°, {draggedObservation?.oldLng.toFixed(6)}°
+            <br />
+            <strong>New location:</strong> {draggedObservation?.newLat.toFixed(6)}°, {draggedObservation?.newLng.toFixed(6)}°
+            <br />
+            <br />
+            <Typography variant="caption" color="warning.main">
+              The original location will be saved in the observation's location history.
+            </Typography>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelMove}>Cancel</Button>
+          <Button onClick={handleConfirmMove} variant="contained" autoFocus>
+            Confirm Move
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };

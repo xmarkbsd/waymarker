@@ -62,6 +62,7 @@ export const App = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isNewObservationOpen, setIsNewObservationOpen] = useState(false);
   const [mapPlacedCoords, setMapPlacedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [moveMode, setMoveMode] = useState(false);
   const [editingObservationId, setEditingObservationId] = useState<number | null>(
     null
   );
@@ -230,7 +231,13 @@ export const App = () => {
   const renderView = () => {
     switch (currentView) {
       case 'map':
-        return <MapView onPlaceObservation={handlePlaceObservation} />;
+        return (
+          <MapView 
+            onPlaceObservation={handlePlaceObservation}
+            moveMode={moveMode}
+            onMoveModeChange={setMoveMode}
+          />
+        );
       case 'settings':
         return <SettingsView />;
       case 'list':
