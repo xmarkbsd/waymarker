@@ -1,6 +1,7 @@
 // src/pages/components/TracklogPolyline.tsx
 
 import { Polyline, CircleMarker, Tooltip } from 'react-leaflet';
+import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { LatLngExpression } from 'leaflet';
@@ -8,7 +9,9 @@ import type { ITracklogPoint } from '../../db';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import Dexie from 'dexie';
 import * as turf from '@turf/turf';
-import { Box, Card, CardContent, Typography } from '@mui/material';
+import { Box, Card, CardContent, Typography, IconButton } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 interface TracklogPolylineProps {
   visible?: boolean;
@@ -16,6 +19,7 @@ interface TracklogPolylineProps {
 
 export const TracklogPolyline: React.FC<TracklogPolylineProps> = ({ visible = true }) => {
   const activeProjectId = useActiveProject();
+  const [statsOpen, setStatsOpen] = useState(false); // collapsed by default
 
   const tracklogPoints = useLiveQuery(
     () => {
@@ -138,7 +142,7 @@ export const TracklogPolyline: React.FC<TracklogPolylineProps> = ({ visible = tr
         </CircleMarker>
       ))}
 
-      {/* Statistics card */}
+      {/* Statistics card (collapsed by default) */}
       {tracklogPoints.length >= 2 && (
         <Box
           sx={{
@@ -149,25 +153,34 @@ export const TracklogPolyline: React.FC<TracklogPolylineProps> = ({ visible = tr
             pointerEvents: 'auto',
           }}
         >
-          <Card sx={{ minWidth: 180, boxShadow: 3 }}>
-            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Track Log
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                Distance: <strong>{totalDistance.toFixed(2)} km</strong>
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                Duration: <strong>{formatDuration(durationMinutes)}</strong>
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                Avg Speed: <strong>{avgSpeedKmh.toFixed(1)} km/h</strong>
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', mt: 0.5, display: 'block' }}>
-                {tracklogPoints.length} points recorded
-              </Typography>
-            </CardContent>
-          </Card>
+          {statsOpen ? (
+            <Card sx={{ minWidth: 180, boxShadow: 3 }}>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Track Log</Typography>
+                  <IconButton size="small" onClick={() => setStatsOpen(false)} aria-label="Hide track stats">
+                    <ExpandLessIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  Distance: <strong>{totalDistance.toFixed(2)} km</strong>
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  Duration: <strong>{formatDuration(durationMinutes)}</strong>
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  Avg Speed: <strong>{avgSpeedKmh.toFixed(1)} km/h</strong>
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', mt: 0.5, display: 'block' }}>
+                  {tracklogPoints.length} points recorded
+                </Typography>
+              </CardContent>
+            </Card>
+          ) : (
+            <IconButton size="small" onClick={() => setStatsOpen(true)} aria-label="Show track stats" sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: '#fff' }}>
+              <ExpandMoreIcon fontSize="small" />
+            </IconButton>
+          )}
         </Box>
       )}
     </>
