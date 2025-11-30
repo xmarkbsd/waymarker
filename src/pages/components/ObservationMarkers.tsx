@@ -11,7 +11,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useActiveProject } from '../../hooks/useActiveProject';
-import type { MapFilters } from './MapFilterPanel';
+import type { MapFilters } from '../../types/mapFilters';
 
 interface ObservationMarkersProps {
   filters?: MapFilters;

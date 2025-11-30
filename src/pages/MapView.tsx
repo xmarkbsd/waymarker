@@ -17,7 +17,7 @@ import { TracklogPolyline } from './components/TracklogPolyline';
 import { UserLocationMarker } from './components/UserLocationMarker';
 import { CustomOfflineTileLayer } from './components/OfflineTileLayer';
 import { LayerControl } from './components/LayerControl';
-import type { MapFilters } from './components/MapFilterPanel';
+import type { MapFilters } from '../types/mapFilters';
 import { MapToolsBar } from './components/MapToolsBar';
 
 L.Icon.Default.mergeOptions({

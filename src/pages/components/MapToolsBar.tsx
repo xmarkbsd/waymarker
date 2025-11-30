@@ -24,7 +24,7 @@ import { useActiveProject } from '../../hooks/useActiveProject';
 import { db } from '../../db';
 import { Polyline, Polygon, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
-import type { MapFilters } from './MapFilterPanel';
+import type { MapFilters } from '../../types/mapFilters';
 import UndoIcon from '@mui/icons-material/Undo';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
