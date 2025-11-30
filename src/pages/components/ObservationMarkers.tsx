@@ -189,7 +189,11 @@ export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
       {moveMode ? (
         markers
       ) : (
-        <MarkerClusterGroup>
+        <MarkerClusterGroup
+          showCoverageOnHover={false}
+          spiderfyOnEveryZoom={true}
+          removeOutsideVisibleBounds={false}
+        >
           {markers}
         </MarkerClusterGroup>
       )}
