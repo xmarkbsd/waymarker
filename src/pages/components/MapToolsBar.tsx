@@ -25,41 +25,31 @@ import { db } from '../../db';
 import { Polyline, Polygon, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import type { MapFilters } from './MapFilterPanel';
+import UndoIcon from '@mui/icons-material/Undo';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import * as turf from '@turf/turf';
 
 interface MapToolsBarProps {
   filters: MapFilters;
   onFiltersChange: (filters: MapFilters) => void;
 }
 
-// Distance between two lat/lon points (meters)
-const haversine = (a: [number, number], b: [number, number]) => {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b[0] - a[0]);
-  const dLon = toRad(b[1] - a[1]);
-  const lat1 = toRad(a[0]);
-  const lat2 = toRad(b[0]);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+// Helpers using turf.js for accurate geodesic distance and area
+const turfLineDistanceMeters = (coords: [number, number][]) => {
+  if (coords.length < 2) return 0;
+  const line = turf.lineString(coords.map(([lng, lat]) => [lng, lat]));
+  return turf.length(line, { units: 'meters' });
 };
-
-// Approximate polygon area (sq meters) using planar shoelace + rough conversion
-const polygonAreaMeters = (coords: [number, number][]) => {
+const turfPolygonAreaMeters = (coords: [number, number][]) => {
   if (coords.length < 3) return 0;
-  let sum = 0;
-  for (let i = 0; i < coords.length; i++) {
-    const [x1, y1] = coords[i];
-    const [x2, y2] = coords[(i + 1) % coords.length];
-    sum += x1 * y2 - x2 * y1;
-  }
-  const raw = Math.abs(sum / 2);
-  // Very rough scaling factor: degrees to meters (latitude ~111.139km)
-  return raw * 111139 * 111139;
+  const poly = turf.polygon([[...coords.map(([lng, lat]) => [lng, lat]), coords[0] ? [coords[0][1], coords[0][0]] : []]]);
+  return Math.max(0, turf.area(poly));
 };
 
 export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange }) => {
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const activeProjectId = useActiveProject();
   const project = useLiveQuery(
     () => (activeProjectId ? db.projects.get(activeProjectId) : undefined),
@@ -95,17 +85,17 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
     setPoints([]);
     setFinished(false);
   };
+  const undoLastPoint = () => {
+    setPoints((p) => (p.length > 0 ? p.slice(0, -1) : p));
+  };
 
   let measureResult: string | null = null;
   if (finished && points.length > 1) {
     if (measureMode === 'line') {
-      let dist = 0;
-      for (let i = 1; i < points.length; i++) {
-        dist += haversine(points[i - 1] as [number, number], points[i] as [number, number]);
-      }
+      const dist = turfLineDistanceMeters(points as [number, number][]);
       measureResult = dist < 1000 ? `${dist.toFixed(1)} m` : `${(dist / 1000).toFixed(2)} km`;
     } else if (measureMode === 'polygon' && points.length > 2) {
-      const area = polygonAreaMeters(points as [number, number][]);
+      const area = turfPolygonAreaMeters(points as [number, number][]);
       measureResult = area < 10000 ? `${area.toFixed(1)} m²` : `${(area / 10000).toFixed(2)} ha`;
     }
   }
@@ -153,13 +143,13 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
           zIndex: 410,
           display: 'flex',
           alignItems: 'center',
-          gap: 1,
+          gap: isSmall ? 0.5 : 1,
           backgroundColor: 'rgba(0,0,0,0.7)',
           color: '#fff',
           backdropFilter: 'blur(4px)',
           borderRadius: 2,
           boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
-          padding: '6px 10px',
+          padding: isSmall ? '8px 12px' : '6px 10px',
           overflowX: 'auto',
           '& .MuiIconButton-root': { color: '#fff' },
           '& .MuiIconButton-root.active': { color: '#4fc3f7' },
@@ -168,7 +158,7 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
       >
         <Tooltip title="Filters">
           <IconButton
-            size="small"
+            size={isSmall ? 'medium' : 'small'}
             onClick={openFilter}
             className={filters.enabled ? 'active' : undefined}
             aria-label="Filters"
@@ -179,7 +169,7 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         <Divider orientation="vertical" flexItem />
         <Tooltip title="Measure distance">
           <IconButton
-            size="small"
+            size={isSmall ? 'medium' : 'small'}
             onClick={() => startMeasure('line')}
             className={measureMode === 'line' ? 'active' : undefined}
             aria-label="Measure distance"
@@ -189,7 +179,7 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         </Tooltip>
         <Tooltip title="Measure area">
           <IconButton
-            size="small"
+            size={isSmall ? 'medium' : 'small'}
             onClick={() => startMeasure('polygon')}
             className={measureMode === 'polygon' ? 'active' : undefined}
             aria-label="Measure area"
@@ -197,9 +187,19 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
             <LayersIcon />
           </IconButton>
         </Tooltip>
+        <Tooltip title="Undo last point">
+          <IconButton
+            size={isSmall ? 'medium' : 'small'}
+            onClick={undoLastPoint}
+            disabled={points.length === 0 || finished}
+            aria-label="Undo last point"
+          >
+            <UndoIcon />
+          </IconButton>
+        </Tooltip>
         <Tooltip title="Clear measurement">
           <IconButton
-            size="small"
+            size={isSmall ? 'medium' : 'small'}
             onClick={clearMeasure}
             disabled={measureMode === 'none'}
             aria-label="Clear measurement"
