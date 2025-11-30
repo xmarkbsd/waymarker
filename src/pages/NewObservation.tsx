@@ -12,8 +12,10 @@ import {
   Slide,
   TextField,
   Box,
-  CircularProgress, // 1. IMPORT CircularProgress
+  CircularProgress,
+  Alert,
 } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import type { TransitionProps } from '@mui/material/transitions';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { GpsStatusView } from './components/GpsStatusView';
@@ -40,8 +42,11 @@ interface NewObservationProps {
 }
 
 export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
+  const location = useLocation();
+  const mapPlacedLocation = location.state as { lat?: number; lng?: number; source?: string } | null;
+  
   const [watch, setWatch] = useState(false);
-  const geoState = useGeolocation(watch);
+  const geoState = useGeolocation(watch && !mapPlacedLocation); // Don't watch GPS if map-placed
   const activeProjectId = useActiveProject();
 
   const [name, setName] = useState('');
@@ -49,7 +54,6 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
   const [customFieldValues, setCustomFieldValues] =
     useState<ICustomFieldValues>({});
   
-  // 2. ADD isSaving state
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -70,8 +74,8 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
     }));
   };
 
-  const isSaveDisabled =
-    geoState.status !== 'Locked' || activeProjectId === null;
+  const hasLocation = mapPlacedLocation?.lat != null || geoState.status === 'Locked';
+  const isSaveDisabled = !hasLocation || activeProjectId === null;
 
   const handleSave = async () => {
     if (isSaveDisabled || isSaving) return; // Prevent double-click
@@ -86,12 +90,20 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
         notes: notes,
       },
       customFieldValues: customFieldValues,
-      geometry: {
+      geometry: mapPlacedLocation?.lat != null ? {
+        latitude: mapPlacedLocation.lat,
+        longitude: mapPlacedLocation.lng!,
+        altitude: null,
+        accuracy: 0,
+        source: 'map-placed',
+      } : {
         latitude: geoState.latitude!,
         longitude: geoState.longitude!,
         altitude: geoState.altitude,
         accuracy: geoState.accuracy!,
+        source: 'gps',
       },
+      locationHistory: [],
     };
 
     try {
@@ -150,7 +162,20 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
           height: '100%',
         }}
       >
-        <GpsStatusView />
+        {mapPlacedLocation?.lat != null ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Map-Placed Location (Estimated)
+            </Typography>
+            <Typography variant="caption">
+              Coordinates: {mapPlacedLocation.lat.toFixed(6)}°, {mapPlacedLocation.lng?.toFixed(6)}°
+              <br />
+              No GPS altitude or accuracy available.
+            </Typography>
+          </Alert>
+        ) : (
+          <GpsStatusView />
+        )}
 
         <Box component="form" noValidate autoComplete="off">
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>

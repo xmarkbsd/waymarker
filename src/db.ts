@@ -15,6 +15,16 @@ export interface IGeometry {
   longitude: number;
   altitude: number | null;
   accuracy: number;
+  source?: 'gps' | 'map-placed' | 'user-moved';
+}
+
+export interface ILocationHistoryEntry {
+  latitude: number;
+  longitude: number;
+  altitude: number | null;
+  accuracy: number | null;
+  source: 'gps' | 'map-placed' | 'user-moved';
+  timestamp: Date;
 }
 
 export interface ICustomFieldValues {
@@ -48,6 +58,7 @@ export interface IObservation {
   geometry: IGeometry;
   coreFields: ICoreFields;
   customFieldValues: ICustomFieldValues;
+  locationHistory?: ILocationHistoryEntry[];
 }
 
 export interface ITracklogPoint {

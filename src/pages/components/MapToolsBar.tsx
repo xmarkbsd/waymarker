@@ -13,17 +13,26 @@ import {
   FormControlLabel,
   Divider,
   Popover,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Button,
 } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import LayersIcon from '@mui/icons-material/Layers';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
+import AddLocationIcon from '@mui/icons-material/AddLocation';
+import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import { db } from '../../db';
-import { Polyline, Polygon, useMapEvents } from 'react-leaflet';
+import { Polyline, Polygon, useMapEvents, Marker } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
+import L from 'leaflet';
 import type { MapFilters } from '../../types/mapFilters';
 import UndoIcon from '@mui/icons-material/Undo';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -63,16 +72,30 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
     [activeProjectId]
   );
 
+  const navigate = useNavigate();
+
   // Measurement state
   const [measureMode, setMeasureMode] = useState<'none' | 'line' | 'polygon'>('none');
   const [points, setPoints] = useState<LatLngExpression[]>([]);
   const [finished, setFinished] = useState(false);
+
+  // Placement mode state
+  const [placementMode, setPlacementMode] = useState(false);
+  const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Filter popover
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
 
   useMapEvents({
     click(e) {
+      // Handle placement mode
+      if (placementMode) {
+        setPendingLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+        setConfirmDialogOpen(true);
+        return;
+      }
+      // Handle measurement mode
       if (measureMode === 'none' || finished) return;
       setPoints((p) => [...p, [e.latlng.lat, e.latlng.lng]]);
     },
@@ -94,6 +117,34 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
   };
   const undoLastPoint = () => {
     setPoints((p) => (p.length > 0 ? p.slice(0, -1) : p));
+  };
+
+  const togglePlacementMode = () => {
+    setPlacementMode(!placementMode);
+    if (placementMode) {
+      // Exiting placement mode
+      setPendingLocation(null);
+    }
+  };
+
+  const handleConfirmPlacement = () => {
+    if (pendingLocation && activeProjectId) {
+      navigate('/observations/new', {
+        state: {
+          lat: pendingLocation.lat,
+          lng: pendingLocation.lng,
+          source: 'map-placed',
+        },
+      });
+      setConfirmDialogOpen(false);
+      setPendingLocation(null);
+      setPlacementMode(false);
+    }
+  };
+
+  const handleCancelPlacement = () => {
+    setConfirmDialogOpen(false);
+    setPendingLocation(null);
   };
 
   // Live measurement preview (distance / area) even before finishing
@@ -128,6 +179,14 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
 
   const selectedField = project?.customFields.find((f) => f.id === filters.customFieldId);
 
+  // Orange marker icon for placement preview
+  const orangeIcon = L.divIcon({
+    className: 'orange-marker',
+    html: `<div style="background-color: #ff9800; width: 25px; height: 25px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+    iconSize: [25, 25],
+    iconAnchor: [12, 24],
+  });
+
   return (
     <>
       {/* Measurement graphics */}
@@ -137,6 +196,11 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         ) : (
           <Polygon positions={points} color="green" weight={3} fillOpacity={0.25} />
         )
+      )}
+
+      {/* Placement preview marker */}
+      {pendingLocation && (
+        <Marker position={[pendingLocation.lat, pendingLocation.lng]} icon={orangeIcon} />
       )}
 
       {/* Bottom toolbar */}
@@ -170,6 +234,17 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
             aria-label="Filters"
           >
             <FilterListIcon />
+          </IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem />
+        <Tooltip title="Add observation from map">
+          <IconButton
+            size={isSmall ? 'medium' : 'small'}
+            onClick={togglePlacementMode}
+            className={placementMode ? 'active' : undefined}
+            aria-label="Add observation from map"
+          >
+            <AddLocationIcon />
           </IconButton>
         </Tooltip>
         <Divider orientation="vertical" flexItem />
@@ -289,6 +364,51 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
           </>
         )}
       </Popover>
+
+      {/* Placement mode indicator banner */}
+      {placementMode && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 10,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 410,
+            backgroundColor: 'rgba(255, 152, 0, 0.95)',
+            color: '#fff',
+            padding: '8px 16px',
+            borderRadius: 2,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+            pointerEvents: 'none',
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Tap map to place new observation
+          </Typography>
+        </Box>
+      )}
+
+      {/* Placement confirmation dialog */}
+      <Dialog open={confirmDialogOpen} onClose={handleCancelPlacement}>
+        <DialogTitle>Add Observation Here?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Create a new observation at this location?
+            <br />
+            Coordinates: {pendingLocation?.lat.toFixed(6)}°, {pendingLocation?.lng.toFixed(6)}°
+            <br />
+            <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
+              Note: This will be marked as a map-placed location (estimated).
+            </Typography>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelPlacement}>Cancel</Button>
+          <Button onClick={handleConfirmPlacement} variant="contained" autoFocus>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
