@@ -39,6 +39,7 @@ export const MapView: React.FC<MapViewProps> = ({ onPlaceObservation, moveMode, 
     customFieldId: null,
     customFieldValue: null,
   });
+  const [showTrackLog, setShowTrackLog] = useState(true);
 
   return (
     <Box sx={{ height: 'calc(100vh - 128px)', width: '100%', position: 'relative' }}>
@@ -51,7 +52,7 @@ export const MapView: React.FC<MapViewProps> = ({ onPlaceObservation, moveMode, 
         <LayerControl />
 
         <ObservationMarkers filters={filters} moveMode={moveMode} />
-        <TracklogPolyline />
+        <TracklogPolyline visible={showTrackLog} />
         <UserLocationMarker />
         <MapToolsBar 
           filters={filters} 
@@ -59,6 +60,8 @@ export const MapView: React.FC<MapViewProps> = ({ onPlaceObservation, moveMode, 
           onPlaceObservation={onPlaceObservation}
           moveMode={moveMode}
           onMoveModeChange={onMoveModeChange}
+          showTrackLog={showTrackLog}
+          onToggleTrackLog={setShowTrackLog}
         />
       </MapContainer>
       {/* Removed top-right filter & measurement panels in favor of consolidated bottom toolbar */}

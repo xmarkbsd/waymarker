@@ -10,7 +10,11 @@ import Dexie from 'dexie';
 import * as turf from '@turf/turf';
 import { Box, Card, CardContent, Typography } from '@mui/material';
 
-export const TracklogPolyline = () => {
+interface TracklogPolylineProps {
+  visible?: boolean;
+}
+
+export const TracklogPolyline: React.FC<TracklogPolylineProps> = ({ visible = true }) => {
   const activeProjectId = useActiveProject();
 
   const tracklogPoints = useLiveQuery(
@@ -28,7 +32,7 @@ export const TracklogPolyline = () => {
     [activeProjectId]
   );
 
-  if (!tracklogPoints || tracklogPoints.length === 0) {
+  if (!visible || !tracklogPoints || tracklogPoints.length === 0) {
     return null;
   }
 
@@ -91,6 +95,7 @@ export const TracklogPolyline = () => {
         color={getColorForIndex(i, tracklogPoints.length)}
         weight={3}
         opacity={0.8}
+        pathOptions={{ pane: 'shadowPane' }}
       />
     );
   }
@@ -138,9 +143,9 @@ export const TracklogPolyline = () => {
         <Box
           sx={{
             position: 'absolute',
-            top: 60,
-            right: 10,
-            zIndex: 1000,
+            bottom: 80,
+            left: 10,
+            zIndex: 400,
             pointerEvents: 'auto',
           }}
         >

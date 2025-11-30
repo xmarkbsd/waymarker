@@ -27,6 +27,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
+import RouteIcon from '@mui/icons-material/Route';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import { db } from '../../db';
@@ -45,6 +47,8 @@ interface MapToolsBarProps {
   onPlaceObservation?: (lat: number, lng: number) => void;
   moveMode?: boolean;
   onMoveModeChange?: (enabled: boolean) => void;
+  showTrackLog?: boolean;
+  onToggleTrackLog?: (show: boolean) => void;
 }
 
 // Helpers using turf.js for accurate geodesic distance and area
@@ -66,7 +70,7 @@ const turfPolygonAreaMeters = (coords: [number, number][]) => {
   return turf.area(poly);
 };
 
-export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange, onPlaceObservation, moveMode, onMoveModeChange }) => {
+export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange, onPlaceObservation, moveMode, onMoveModeChange, showTrackLog, onToggleTrackLog }) => {
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const activeProjectId = useActiveProject();
@@ -97,6 +101,18 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         setFinished(false);
       }
     }
+  };
+
+  // Track log handlers
+  const [clearTrackLogDialogOpen, setClearTrackLogDialogOpen] = useState(false);
+
+  const handleClearTrackLog = async () => {
+    if (!activeProjectId) return;
+    await db.tracklog
+      .where('projectId')
+      .equals(activeProjectId)
+      .delete();
+    setClearTrackLogDialogOpen(false);
   };
 
   // Filter popover
@@ -265,6 +281,26 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
             aria-label="Move observations"
           >
             <OpenWithIcon />
+          </IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem />
+        <Tooltip title={showTrackLog ? "Hide track log" : "Show track log"}>
+          <IconButton
+            size={isSmall ? 'medium' : 'small'}
+            onClick={() => onToggleTrackLog?.(!showTrackLog)}
+            className={showTrackLog ? 'active' : undefined}
+            aria-label="Toggle track log"
+          >
+            <RouteIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Clear track log">
+          <IconButton
+            size={isSmall ? 'medium' : 'small'}
+            onClick={() => setClearTrackLogDialogOpen(true)}
+            aria-label="Clear track log"
+          >
+            <DeleteSweepIcon />
           </IconButton>
         </Tooltip>
         <Divider orientation="vertical" flexItem />
@@ -449,6 +485,27 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
           <Button onClick={handleCancelPlacement}>Cancel</Button>
           <Button onClick={handleConfirmPlacement} variant="contained" autoFocus>
             Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Clear track log confirmation dialog */}
+      <Dialog open={clearTrackLogDialogOpen} onClose={() => setClearTrackLogDialogOpen(false)}>
+        <DialogTitle>Clear Track Log?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Delete all track log points for this project? This cannot be undone.
+            <br />
+            <br />
+            <Typography variant="caption" color="warning.main">
+              Note: This only affects the track log, not your observations.
+            </Typography>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClearTrackLogDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleClearTrackLog} color="error" variant="contained" autoFocus>
+            Clear Track Log
           </Button>
         </DialogActions>
       </Dialog>
