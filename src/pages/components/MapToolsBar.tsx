@@ -96,15 +96,14 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
     setPoints((p) => (p.length > 0 ? p.slice(0, -1) : p));
   };
 
-  let measureResult: string | null = null;
-  if (finished && points.length > 1) {
-    if (measureMode === 'line') {
-      const dist = turfLineDistanceMeters(points as [number, number][]);
-      measureResult = dist < 1000 ? `${dist.toFixed(1)} m` : `${(dist / 1000).toFixed(2)} km`;
-    } else if (measureMode === 'polygon' && points.length > 2) {
-      const area = turfPolygonAreaMeters(points as [number, number][]);
-      measureResult = area < 10000 ? `${area.toFixed(1)} m²` : `${(area / 10000).toFixed(2)} ha`;
-    }
+  // Live measurement preview (distance / area) even before finishing
+  let liveResult: string | null = null;
+  if (measureMode === 'line' && points.length > 1) {
+    const dist = turfLineDistanceMeters(points as [number, number][]);
+    liveResult = dist < 1000 ? `${dist.toFixed(1)} m` : `${(dist / 1000).toFixed(2)} km`;
+  } else if (measureMode === 'polygon' && points.length > 2) {
+    const area = turfPolygonAreaMeters(points as [number, number][]);
+    liveResult = area < 10000 ? `${area.toFixed(1)} m²` : `${(area / 10000).toFixed(2)} ha`;
   }
 
   const openFilter = (e: React.MouseEvent<HTMLElement>) => {
@@ -216,9 +215,10 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
         </Tooltip>
         {measureMode !== 'none' && (
           <Typography variant="body2" sx={{ ml: 1 }}>
-            {finished && measureResult
-              ? measureResult
+            {finished
+              ? liveResult || `${points.length} point${points.length === 1 ? '' : 's'}`
               : `${points.length} point${points.length === 1 ? '' : 's'}`}
+            {liveResult && !finished && ` • ${liveResult}`}
             {!finished && points.length > 0 && ' (double‑tap to finish)'}
           </Typography>
         )}
