@@ -38,13 +38,20 @@ interface MapToolsBarProps {
 // Helpers using turf.js for accurate geodesic distance and area
 const turfLineDistanceMeters = (coords: [number, number][]) => {
   if (coords.length < 2) return 0;
-  const line = turf.lineString(coords.map(([lng, lat]) => [lng, lat]));
-  return turf.length(line, { units: 'meters' });
+  // Stored as [lat, lng]; turf expects [lng, lat]
+  const line = turf.lineString(coords.map(([lat, lng]) => [lng, lat]));
+  const km = turf.length(line, { units: 'kilometers' });
+  return km * 1000;
 };
 const turfPolygonAreaMeters = (coords: [number, number][]) => {
   if (coords.length < 3) return 0;
-  const poly = turf.polygon([[...coords.map(([lng, lat]) => [lng, lat]), coords[0] ? [coords[0][1], coords[0][0]] : []]]);
-  return Math.max(0, turf.area(poly));
+  const ring = coords.map(([lat, lng]) => [lng, lat]);
+  // Close ring
+  if (ring.length > 0) {
+    ring.push([...ring[0]]);
+  }
+  const poly = turf.polygon([ring]);
+  return turf.area(poly);
 };
 
 export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange }) => {
@@ -212,7 +219,7 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
             {finished && measureResult
               ? measureResult
               : `${points.length} point${points.length === 1 ? '' : 's'}`}
-            {!finished && measureMode !== 'none' && points.length > 0 && ' (double‑tap to finish)'}
+            {!finished && points.length > 0 && ' (double‑tap to finish)'}
           </Typography>
         )}
       </Box>
