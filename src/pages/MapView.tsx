@@ -26,7 +26,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
-export const MapView = () => {
+interface MapViewProps {
+  onPlaceObservation?: (lat: number, lng: number) => void;
+}
+
+export const MapView: React.FC<MapViewProps> = ({ onPlaceObservation }) => {
   const [filters, setFilters] = useState<MapFilters>({
     enabled: false,
     dateRange: 'all',
@@ -47,7 +51,7 @@ export const MapView = () => {
         <ObservationMarkers filters={filters} />
         <TracklogPolyline />
         <UserLocationMarker />
-        <MapToolsBar filters={filters} onFiltersChange={setFilters} />
+        <MapToolsBar filters={filters} onFiltersChange={setFilters} onPlaceObservation={onPlaceObservation} />
       </MapContainer>
       {/* Removed top-right filter & measurement panels in favor of consolidated bottom toolbar */}
     </Box>

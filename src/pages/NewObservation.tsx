@@ -15,7 +15,6 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
-import { useLocation } from 'react-router-dom';
 import type { TransitionProps } from '@mui/material/transitions';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { GpsStatusView } from './components/GpsStatusView';
@@ -39,14 +38,12 @@ const Transition = React.forwardRef(
 interface NewObservationProps {
   open: boolean;
   handleClose: () => void;
+  mapPlacedCoords?: { lat: number; lng: number } | null;
 }
 
-export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
-  const location = useLocation();
-  const mapPlacedLocation = location.state as { lat?: number; lng?: number; source?: string } | null;
-  
+export const NewObservation = ({ open, handleClose, mapPlacedCoords }: NewObservationProps) => {
   const [watch, setWatch] = useState(false);
-  const geoState = useGeolocation(watch && !mapPlacedLocation); // Don't watch GPS if map-placed
+  const geoState = useGeolocation(watch && !mapPlacedCoords); // Don't watch GPS if map-placed
   const activeProjectId = useActiveProject();
 
   const [name, setName] = useState('');
@@ -74,7 +71,7 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
     }));
   };
 
-  const hasLocation = mapPlacedLocation?.lat != null || geoState.status === 'Locked';
+  const hasLocation = mapPlacedCoords?.lat != null || geoState.status === 'Locked';
   const isSaveDisabled = !hasLocation || activeProjectId === null;
 
   const handleSave = async () => {
@@ -90,9 +87,9 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
         notes: notes,
       },
       customFieldValues: customFieldValues,
-      geometry: mapPlacedLocation?.lat != null ? {
-        latitude: mapPlacedLocation.lat,
-        longitude: mapPlacedLocation.lng!,
+      geometry: mapPlacedCoords?.lat != null ? {
+        latitude: mapPlacedCoords.lat,
+        longitude: mapPlacedCoords.lng,
         altitude: null,
         accuracy: 0,
         source: 'map-placed',
@@ -162,13 +159,13 @@ export const NewObservation = ({ open, handleClose }: NewObservationProps) => {
           height: '100%',
         }}
       >
-        {mapPlacedLocation?.lat != null ? (
+        {mapPlacedCoords?.lat != null ? (
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               Map-Placed Location (Estimated)
             </Typography>
             <Typography variant="caption">
-              Coordinates: {mapPlacedLocation.lat.toFixed(6)}°, {mapPlacedLocation.lng?.toFixed(6)}°
+              Coordinates: {mapPlacedCoords.lat.toFixed(6)}°, {mapPlacedCoords.lng.toFixed(6)}°
               <br />
               No GPS altitude or accuracy available.
             </Typography>

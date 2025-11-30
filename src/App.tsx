@@ -61,6 +61,7 @@ export const App = () => {
   const menuOpen = Boolean(anchorEl);
   const [isRecording, setIsRecording] = useState(false);
   const [isNewObservationOpen, setIsNewObservationOpen] = useState(false);
+  const [mapPlacedCoords, setMapPlacedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [editingObservationId, setEditingObservationId] = useState<number | null>(
     null
   );
@@ -77,6 +78,16 @@ export const App = () => {
 
   const activeProjectId = useActiveProject();
   useTracklog(isRecording, activeProjectId);
+
+  const handlePlaceObservation = (lat: number, lng: number) => {
+    setMapPlacedCoords({ lat, lng });
+    setIsNewObservationOpen(true);
+  };
+
+  const handleCloseNewObservation = () => {
+    setIsNewObservationOpen(false);
+    setMapPlacedCoords(null);
+  };
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -219,7 +230,7 @@ export const App = () => {
   const renderView = () => {
     switch (currentView) {
       case 'map':
-        return <MapView />;
+        return <MapView onPlaceObservation={handlePlaceObservation} />;
       case 'settings':
         return <SettingsView />;
       case 'list':
@@ -347,6 +358,7 @@ export const App = () => {
             label="Map"
             value="map"
             icon={<MapIcon />}
+            aria-label="Map"
           />
           <BottomNavigationAction
             label="Settings"
@@ -360,7 +372,8 @@ export const App = () => {
 
       <NewObservation
         open={isNewObservationOpen}
-        handleClose={() => setIsNewObservationOpen(false)}
+        handleClose={handleCloseNewObservation}
+        mapPlacedCoords={mapPlacedCoords}
       />
 
       <EditObservation

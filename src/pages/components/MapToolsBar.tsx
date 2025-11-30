@@ -26,7 +26,6 @@ import LayersIcon from '@mui/icons-material/Layers';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
-import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import { db } from '../../db';
@@ -42,6 +41,7 @@ import * as turf from '@turf/turf';
 interface MapToolsBarProps {
   filters: MapFilters;
   onFiltersChange: (filters: MapFilters) => void;
+  onPlaceObservation?: (lat: number, lng: number) => void;
 }
 
 // Helpers using turf.js for accurate geodesic distance and area
@@ -63,7 +63,7 @@ const turfPolygonAreaMeters = (coords: [number, number][]) => {
   return turf.area(poly);
 };
 
-export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange }) => {
+export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChange, onPlaceObservation }) => {
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const activeProjectId = useActiveProject();
@@ -71,8 +71,6 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
     () => (activeProjectId ? db.projects.get(activeProjectId) : undefined),
     [activeProjectId]
   );
-
-  const navigate = useNavigate();
 
   // Measurement state
   const [measureMode, setMeasureMode] = useState<'none' | 'line' | 'polygon'>('none');
@@ -128,14 +126,8 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
   };
 
   const handleConfirmPlacement = () => {
-    if (pendingLocation && activeProjectId) {
-      navigate('/observations/new', {
-        state: {
-          lat: pendingLocation.lat,
-          lng: pendingLocation.lng,
-          source: 'map-placed',
-        },
-      });
+    if (pendingLocation && activeProjectId && onPlaceObservation) {
+      onPlaceObservation(pendingLocation.lat, pendingLocation.lng);
       setConfirmDialogOpen(false);
       setPendingLocation(null);
       setPlacementMode(false);
