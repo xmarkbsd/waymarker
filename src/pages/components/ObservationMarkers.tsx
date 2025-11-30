@@ -87,16 +87,26 @@ export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
   }
 
   // Custom marker icons for different location sources
+  const basePinHtml = (color: string) => `
+    <div style="background-color: ${color}; width: 25px; height: 25px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>
+  `;
+
+  const blueIcon = L.divIcon({
+    className: 'blue-marker',
+    html: basePinHtml('#2196f3'),
+    iconSize: [25, 25],
+    iconAnchor: [12, 24],
+  });
   const orangeIcon = L.divIcon({
     className: 'orange-marker',
-    html: `<div style="background-color: #ff9800; width: 25px; height: 25px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+    html: basePinHtml('#ff9800'),
     iconSize: [25, 25],
     iconAnchor: [12, 24],
   });
 
   const yellowIcon = L.divIcon({
     className: 'yellow-marker',
-    html: `<div style="background-color: #ffc107; width: 25px; height: 25px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+    html: basePinHtml('#ffc107'),
     iconSize: [25, 25],
     iconAnchor: [12, 24],
   });
@@ -104,7 +114,7 @@ export const ObservationMarkers: React.FC<ObservationMarkersProps> = ({
   const getMarkerIcon = (source?: string) => {
     if (source === 'map-placed') return orangeIcon;
     if (source === 'user-moved') return yellowIcon;
-    return undefined; // Use default blue
+    return blueIcon; // Always use visible blue divIcon by default
   };
 
   const handleDragEnd = async (obsId: number, oldLat: number, oldLng: number, event: L.DragEndEvent) => {
