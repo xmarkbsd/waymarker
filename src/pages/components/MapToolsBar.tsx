@@ -29,6 +29,12 @@ import AddLocationIcon from '@mui/icons-material/AddLocation';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
 import RouteIcon from '@mui/icons-material/Route';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import { db } from '../../db';
@@ -105,6 +111,18 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
 
   // Track log handlers
   const [clearTrackLogDialogOpen, setClearTrackLogDialogOpen] = useState(false);
+
+  // More Tools menu
+  const [moreToolsAnchor, setMoreToolsAnchor] = useState<HTMLElement | null>(null);
+  const moreToolsOpen = Boolean(moreToolsAnchor);
+  
+  const openMoreTools = (event: React.MouseEvent<HTMLElement>) => {
+    setMoreToolsAnchor(event.currentTarget);
+  };
+  
+  const closeMoreTools = () => {
+    setMoreToolsAnchor(null);
+  };
 
   const handleClearTrackLog = async () => {
     if (!activeProjectId) return;
@@ -273,17 +291,6 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
           </IconButton>
         </Tooltip>
         <Divider orientation="vertical" flexItem />
-        <Tooltip title="Move observations">
-          <IconButton
-            size={isSmall ? 'medium' : 'small'}
-            onClick={toggleMoveMode}
-            className={moveMode ? 'active' : undefined}
-            aria-label="Move observations"
-          >
-            <OpenWithIcon />
-          </IconButton>
-        </Tooltip>
-        <Divider orientation="vertical" flexItem />
         <Tooltip title={showTrackLog ? "Hide track log" : "Show track log"}>
           <IconButton
             size={isSmall ? 'medium' : 'small'}
@@ -294,66 +301,140 @@ export const MapToolsBar: React.FC<MapToolsBarProps> = ({ filters, onFiltersChan
             <RouteIcon />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Clear track log">
-          <IconButton
-            size={isSmall ? 'medium' : 'small'}
-            onClick={() => setClearTrackLogDialogOpen(true)}
-            aria-label="Clear track log"
-          >
-            <DeleteSweepIcon />
-          </IconButton>
-        </Tooltip>
         <Divider orientation="vertical" flexItem />
-        <Tooltip title="Measure distance">
+        <Tooltip title="More tools">
           <IconButton
             size={isSmall ? 'medium' : 'small'}
-            onClick={() => startMeasure('line')}
-            className={measureMode === 'line' ? 'active' : undefined}
-            aria-label="Measure distance"
+            onClick={openMoreTools}
+            className={moreToolsOpen ? 'active' : undefined}
+            aria-label="More tools"
           >
-            <TimelineIcon />
+            <MoreVertIcon />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Measure area">
-          <IconButton
-            size={isSmall ? 'medium' : 'small'}
-            onClick={() => startMeasure('polygon')}
-            className={measureMode === 'polygon' ? 'active' : undefined}
-            aria-label="Measure area"
-          >
-            <LayersIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Undo last point">
-          <IconButton
-            size={isSmall ? 'medium' : 'small'}
-            onClick={undoLastPoint}
-            disabled={points.length === 0 || finished}
-            aria-label="Undo last point"
+
+        {/* Measurement mode active controls */}
+        {measureMode !== 'none' && (
+          <>
+            <Divider orientation="vertical" flexItem />
+            <Tooltip title="Undo last point">
+              <IconButton
+                size={isSmall ? 'medium' : 'small'}
+                onClick={undoLastPoint}
+                disabled={points.length === 0 || finished}
+                aria-label="Undo last point"
           >
             <UndoIcon />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Clear measurement">
-          <IconButton
-            size={isSmall ? 'medium' : 'small'}
-            onClick={clearMeasure}
-            disabled={measureMode === 'none'}
-            aria-label="Clear measurement"
-          >
-            <DeleteIcon />
-          </IconButton>
-        </Tooltip>
-        {measureMode !== 'none' && (
-          <Typography variant="body2" sx={{ ml: 1 }}>
-            {finished
-              ? liveResult || `${points.length} point${points.length === 1 ? '' : 's'}`
-              : `${points.length} point${points.length === 1 ? '' : 's'}`}
-            {liveResult && !finished && ` • ${liveResult}`}
-            {!finished && points.length > 0 && ' (double‑tap to finish)'}
-          </Typography>
+            <Tooltip title="Clear measurement">
+              <IconButton
+                size={isSmall ? 'medium' : 'small'}
+                onClick={clearMeasure}
+                aria-label="Clear measurement"
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="body2" sx={{ ml: 1 }}>
+              {finished
+                ? liveResult || `${points.length} point${points.length === 1 ? '' : 's'}`
+                : `${points.length} point${points.length === 1 ? '' : 's'}`}
+              {liveResult && !finished && ` • ${liveResult}`}
+              {!finished && points.length > 0 && ' (double‑tap to finish)'}
+            </Typography>
+          </>
         )}
       </Box>
+
+      {/* More Tools Menu */}
+      <Popover
+        open={moreToolsOpen}
+        anchorEl={moreToolsAnchor}
+        onClose={closeMoreTools}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        PaperProps={{ sx: { width: 280 } }}
+      >
+        <Box sx={{ p: 1 }}>
+          <Typography variant="subtitle2" sx={{ px: 2, py: 1, fontWeight: 600 }}>
+            More Tools
+          </Typography>
+          
+          <Typography variant="caption" sx={{ px: 2, py: 0.5, display: 'block', color: 'text.secondary' }}>
+            Observations
+          </Typography>
+          <List dense>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => {
+                  toggleMoveMode();
+                  closeMoreTools();
+                }}
+                selected={moveMode}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <OpenWithIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Move Observations" secondary="Drag markers to reposition" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+
+          <Typography variant="caption" sx={{ px: 2, py: 0.5, display: 'block', color: 'text.secondary', mt: 1 }}>
+            Track Log
+          </Typography>
+          <List dense>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => {
+                  setClearTrackLogDialogOpen(true);
+                  closeMoreTools();
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <DeleteSweepIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Clear Track Log" secondary="Delete all recorded points" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+
+          <Typography variant="caption" sx={{ px: 2, py: 0.5, display: 'block', color: 'text.secondary', mt: 1 }}>
+            Measurements
+          </Typography>
+          <List dense>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => {
+                  startMeasure('line');
+                  closeMoreTools();
+                }}
+                selected={measureMode === 'line'}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <TimelineIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Measure Distance" secondary="Tap points to measure path" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => {
+                  startMeasure('polygon');
+                  closeMoreTools();
+                }}
+                selected={measureMode === 'polygon'}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <LayersIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Measure Area" secondary="Tap points to measure region" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Box>
+      </Popover>
 
       {/* Filter popover */}
       <Popover
