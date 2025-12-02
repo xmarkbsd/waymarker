@@ -44,36 +44,3 @@
 .leaflet-top {
   z-index: 500;
 }
-
-/* Compact attribution styling for mobile */
-.leaflet-control-attribution {
-  font-size: 9px !important;
-  line-height: 1.2 !important;
-  padding: 2px 4px !important;
-  background: rgba(255, 255, 255, 0.8) !important;
-  max-width: 200px;
-  margin: 0 0 4px 4px !important;
-}
-
-.leaflet-control-attribution a {
-  font-size: 9px !important;
-}
-
-/* On very small screens, make it even more compact */
-@media (max-width: 600px) {
-  .leaflet-control-attribution {
-    font-size: 7px !important;
-    padding: 1px 3px !important;
-    max-width: 150px;
-    opacity: 0.7;
-  }
-  
-  .leaflet-control-attribution a {
-    font-size: 7px !important;
-  }
-  
-  /* Move attribution up to avoid toolbar overlap */
-  .leaflet-bottom.leaflet-left {
-    bottom: 70px !important;
-  }
-}
