@@ -190,38 +190,6 @@ export const SettingsView = () => {
             Add Field
           </Button>
         </Paper>
-
-        {/* --- About & Attribution Section --- */}
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>About & Attribution</Typography>
-          
-          <Typography variant="subtitle2" sx={{ mt: 2, fontWeight: 600 }}>
-            WayMarker
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Field observation and mapping application for environmental monitoring and survey work.
-          </Typography>
-
-          <Typography variant="subtitle2" sx={{ mt: 2, fontWeight: 600 }}>
-            Map Data & Services
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-            <strong>OpenStreetMap:</strong> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors. Map data licensed under the Open Data Commons Open Database License (ODbL).
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-            <strong>ESRI Satellite Imagery:</strong> Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community.
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            <strong>Leaflet:</strong> © <a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>, an open-source JavaScript library for mobile-friendly interactive maps.
-          </Typography>
-
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 2 }}>
-            For more information about data usage and attribution requirements, visit{' '}
-            <a href="https://developers.arcgis.com/documentation/esri-and-data-attribution/" target="_blank" rel="noopener noreferrer">
-              ESRI Attribution Guidelines
-            </a>.
-          </Typography>
-        </Paper>
       </Box>
 
       {/* --- Dialogs --- */}

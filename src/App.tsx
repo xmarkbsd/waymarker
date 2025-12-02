@@ -37,6 +37,9 @@ import { NewObservation } from './pages/NewObservation';
 import { EditObservation } from './pages/EditObservation';
 import { LoadingModal } from './pages/components/LoadingModal';
 import { ZipExportDialog } from './pages/components/ZipExportDialog';
+import { ExportView } from './pages/ExportView';
+import { HelpView } from './pages/HelpView';
+import { AboutView } from './pages/AboutView';
 import { useTracklog } from './hooks/useTracklog';
 import { useActiveProject } from './hooks/useActiveProject';
 
@@ -48,7 +51,7 @@ import { parseKML } from './services/kmlParser';
 import { db } from './db';
 import type { IProject } from './db';
 
-type View = 'list' | 'map' | 'settings';
+type View = 'list' | 'map' | 'settings' | 'export' | 'help' | 'about';
 
 interface SnackbarState {
   open: boolean;
@@ -241,6 +244,20 @@ export const App = () => {
         );
       case 'settings':
         return <SettingsView />;
+      case 'export':
+        return (
+          <ExportView
+            onImportClick={handleImportClick}
+            onExportKML={handleExportKMLOnly}
+            onExportCSV={handleExportCSV}
+            onExportTextReport={handleExportTextReport}
+            onExportZip={handleZipExport}
+          />
+        );
+      case 'help':
+        return <HelpView />;
+      case 'about':
+        return <AboutView />;
       case 'list':
       default:
         return <ObservationListView onEdit={handleEditObservation} />;
@@ -283,27 +300,14 @@ export const App = () => {
             open={menuOpen}
             onClose={handleMenuClose}
           >
-            {/* Import section */}
-            <MenuItem onClick={handleImportClick} disabled={!activeProjectId}>
-              Import KML
+            <MenuItem onClick={() => { handleMenuClose(); setCurrentView('export'); }}>
+              Import & Export
             </MenuItem>
-            <Divider />
-            
-            {/* Export formats section */}
-            <MenuItem onClick={handleExportKMLOnly} disabled={!activeProjectId}>
-              Export KML Only
+            <MenuItem onClick={() => { handleMenuClose(); setCurrentView('help'); }}>
+              Help
             </MenuItem>
-            <MenuItem onClick={handleExportCSV} disabled={!activeProjectId}>
-              Export CSV Only
-            </MenuItem>
-            <MenuItem onClick={handleExportTextReport} disabled={!activeProjectId}>
-              Export Text Report
-            </MenuItem>
-            <Divider />
-            
-            {/* Bundle export section */}
-            <MenuItem onClick={handleZipExport} disabled={!activeProjectId}>
-              Export Zip Bundle...
+            <MenuItem onClick={() => { handleMenuClose(); setCurrentView('about'); }}>
+              About & Attribution
             </MenuItem>
           </Menu>
         </Toolbar>
