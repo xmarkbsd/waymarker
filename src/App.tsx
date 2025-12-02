@@ -7,6 +7,7 @@ import {
   BottomNavigationAction,
   Box,
   Container,
+  Divider,
   Fab,
   IconButton,
   Menu,
@@ -282,10 +283,13 @@ export const App = () => {
             open={menuOpen}
             onClose={handleMenuClose}
           >
-            {/* 3. DISABLE Import if no active project */}
+            {/* Import section */}
             <MenuItem onClick={handleImportClick} disabled={!activeProjectId}>
               Import KML
             </MenuItem>
+            <Divider />
+            
+            {/* Export formats section */}
             <MenuItem onClick={handleExportKMLOnly} disabled={!activeProjectId}>
               Export KML Only
             </MenuItem>
@@ -295,6 +299,9 @@ export const App = () => {
             <MenuItem onClick={handleExportTextReport} disabled={!activeProjectId}>
               Export Text Report
             </MenuItem>
+            <Divider />
+            
+            {/* Bundle export section */}
             <MenuItem onClick={handleZipExport} disabled={!activeProjectId}>
               Export Zip Bundle...
             </MenuItem>
