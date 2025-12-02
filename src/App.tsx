@@ -7,7 +7,6 @@ import {
   BottomNavigationAction,
   Box,
   Container,
-  Divider,
   Fab,
   IconButton,
   Menu,
